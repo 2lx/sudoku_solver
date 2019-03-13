@@ -1,0 +1,6 @@
+lib
+bin
+tags
+**/CMake*
+**/cmake*
+**/Makefile
