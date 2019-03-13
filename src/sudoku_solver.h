@@ -23,7 +23,9 @@ private:
     std::array<bool, NCOUNT*NCOUNT> processed;
 
     Solver(const Solver &) = default;
-    Solver & operator=(const Solver &) = default;
+    Solver(Solver &&) = delete;
+    Solver & operator=(const Solver &) = delete;
+    Solver & operator=(Solver &&) = default;
 
     void init_neighbor_indexes();
     void restrict_possibilities();
@@ -38,6 +40,9 @@ public:
     void print_solution(std::ostream & stream) const;
     bool solution_is_complete() const;
 };
+
+// explicit instantiation declaration
+extern template class Solver<3>;
 }
 
 #endif

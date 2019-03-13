@@ -111,7 +111,7 @@ tuple<bool, bool, bool> Solver<SIZE>::write_down_sole_possibilities() {
             case 0: return {false, false, false};
             case 1: {
                 // find the only possible number
-                numbers[i] = possibilities[i]._Find_first() + 1;
+                numbers[i] = static_cast<uchar>(possibilities[i]._Find_first() + 1u);
                 was_replenished = true;
                 break;
             }
@@ -128,16 +128,16 @@ bool Solver<SIZE>::assume_number() {
     uint index = 0;
     while (numbers[index] != EMPTY) { index++; }
 
-    uint poss_index = possibilities[index]._Find_first();
+    auto poss_index = possibilities[index]._Find_first();
     while (poss_index != NCOUNT) {
         auto backup = *this;
 
         /* cout << "assumption(" << index << ") number = " << poss_index + 1 << endl; */
-        numbers[index] = poss_index + 1;
+        numbers[index] = static_cast<uchar>(poss_index + 1u);
         if (solve()) { return true; }
 
         /* cout << "wrong assumption(" << index << ")" << endl; */
-        *this = backup;
+        *this = move(backup);
         poss_index = possibilities[index]._Find_next(poss_index + 1);
     }
     return false;
@@ -165,14 +165,14 @@ bool Solver<SIZE>::solution_is_complete() const {
         if (num == EMPTY) { return false; }
     }
 
-    auto is_unique = [](array<uchar, NCOUNT> & r) {
+    auto is_unique = [](auto & r) {
         sort(begin(r), end(r));
         return unique(begin(r), end(r)) == end(r);
     };
 
     for (uint i = 0; i < NCOUNT; i++) {
         const uint box_first = i%SIZE*SIZE*NCOUNT + i/SIZE*SIZE;
-        array<uchar, NCOUNT> vrow, vcol, vbox;
+        array<uint, NCOUNT> vrow, vcol, vbox;
 
         for (uint j = 0; j < NCOUNT; j++) {
             vrow[j] = i * NCOUNT + j;
@@ -185,5 +185,5 @@ bool Solver<SIZE>::solution_is_complete() const {
     return true;
 }
 
-// explicit instantiations
+// explicit instantiation definition
 template class Sudoku::Solver<3>;
