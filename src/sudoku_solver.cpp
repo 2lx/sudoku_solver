@@ -2,16 +2,11 @@
 
 #include <iostream>
 #include <algorithm>
-#include <set>
-#include <cassert>
-#include <iostream>
 
 using namespace std;
 using namespace Sudoku;
 
 constexpr uchar EMPTY = static_cast<uchar>(0);
-template <uint SIZE> const uint Solver<SIZE>::NCOUNT;
-template <uint SIZE> const uint Solver<SIZE>::ICOUNT;
 
 template <uint SIZE>
 constexpr typename Solver<SIZE>::NeighborArray Solver<SIZE>::init_neighbors() {

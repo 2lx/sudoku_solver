@@ -5,8 +5,6 @@
 #include <tuple>
 #include <array>
 #include <bitset>
-#include <set>
-#include <cassert>
 
 namespace Sudoku
 {
