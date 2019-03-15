@@ -5,6 +5,8 @@
 #include <tuple>
 #include <array>
 #include <bitset>
+#include <set>
+#include <cassert>
 
 namespace Sudoku
 {
@@ -17,17 +19,22 @@ private:
     static constexpr uint NCOUNT = SIZE*SIZE;
     static constexpr uint ICOUNT = 3*SIZE*SIZE - 2*SIZE;
 
-    std::array<uchar, NCOUNT*NCOUNT> numbers;
-    std::array<std::bitset<NCOUNT>, NCOUNT*NCOUNT> possibilities;
-    std::array<std::array<uint, ICOUNT>, NCOUNT*NCOUNT> neighbors;
-    std::array<bool, NCOUNT*NCOUNT> processed;
+    template <typename T>
+    using NNArray = std::array<T, NCOUNT*NCOUNT>;
+    using NeighborArray = NNArray<std::array<uint, ICOUNT>>;
+
+    static constexpr NeighborArray init_neighbors();
+    static constexpr NeighborArray neighbors = init_neighbors();
+
+    NNArray<uchar> numbers;
+    NNArray<std::bitset<NCOUNT>> possibilities;
+    NNArray<bool> processed;
 
     Solver(const Solver &) = default;
     Solver(Solver &&) = delete;
     Solver & operator=(const Solver &) = delete;
     Solver & operator=(Solver &&) = default;
 
-    void init_neighbor_indexes();
     void restrict_possibilities();
     std::tuple<bool, bool, bool> write_down_sole_possibilities();
     bool assume_number();

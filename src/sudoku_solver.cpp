@@ -14,6 +14,30 @@ template <uint SIZE> const uint Solver<SIZE>::NCOUNT;
 template <uint SIZE> const uint Solver<SIZE>::ICOUNT;
 
 template <uint SIZE>
+constexpr typename Solver<SIZE>::NeighborArray Solver<SIZE>::init_neighbors() {
+    NeighborArray array{ 0 };
+
+    constexpr auto add_unique = [](std::array<uint, ICOUNT> & ar, const auto num) {
+        for (uint i = 0; i < ICOUNT && ar[i] != num; i++) {
+            if (ar[i] == 0) { ar[i] = num; return; }
+        }
+    };
+
+    for (uint i = 0; i < NCOUNT*NCOUNT; i++) {
+        const uint x = i  % NCOUNT, y = i  / NCOUNT;
+        const uint box_first = y / SIZE * SIZE * NCOUNT + x / SIZE * SIZE;
+
+        for (uint j = 0; j < NCOUNT; j++) {
+            add_unique(array[i], y * NCOUNT + j);
+            add_unique(array[i], x + j * NCOUNT);
+            add_unique(array[i], box_first + j/SIZE*NCOUNT + j%SIZE);
+        }
+    }
+
+    return array;
+}
+
+template <uint SIZE>
 bool Solver<SIZE>::read_level_data(std::istream & stream) {
     for (uint i = 0; i < NCOUNT*NCOUNT; i++) {
         processed[i] = false;
@@ -38,27 +62,8 @@ bool Solver<SIZE>::read_level_data(std::istream & stream) {
         }
     }
 
-    init_neighbor_indexes();
+    init_neighbors();
     return true;
-}
-
-template <uint SIZE>
-void Solver<SIZE>::init_neighbor_indexes() {
-    for (uint i = 0; i < NCOUNT*NCOUNT; i++) {
-        const uint x = i  % NCOUNT, y = i  / NCOUNT;
-        const uint box_first = y / SIZE * SIZE * NCOUNT + x / SIZE * SIZE;
-
-        set<uint> sneighbors;
-        for (uint j = 0; j < NCOUNT; j++) {
-            sneighbors.insert(y * NCOUNT + j);
-            sneighbors.insert(x + j * NCOUNT);
-            sneighbors.insert(box_first + j/SIZE*NCOUNT + j%SIZE);
-        }
-        assert(sneighbors.size() == ICOUNT);
-
-        copy(begin(sneighbors), end(sneighbors),
-             begin(neighbors[i]));
-    }
 }
 
 template <uint SIZE>
@@ -138,7 +143,7 @@ bool Solver<SIZE>::assume_number() {
 
         /* cout << "wrong assumption(" << index << ")" << endl; */
         *this = move(backup);
-        poss_index = possibilities[index]._Find_next(poss_index + 1);
+        poss_index = possibilities[index]._Find_next(poss_index);
     }
     return false;
 }
