@@ -4,3 +4,6 @@ tags
 **/CMake*
 **/cmake*
 **/Makefile
+*.out
+*.lst
+*.gch

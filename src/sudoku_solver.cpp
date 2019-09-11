@@ -2,186 +2,237 @@
 
 #include <iostream>
 #include <algorithm>
+#include <set>
 
 using namespace std;
 using namespace Sudoku;
 
-constexpr uchar EMPTY = static_cast<uchar>(0);
+constexpr uint8_t EMPTY = static_cast<uint8_t>(0);
 
-template <uint SIZE>
-constexpr typename Solver<SIZE>::NeighborArray Solver<SIZE>::init_neighbors() {
+template <uint32_t SIZE>
+constexpr typename Solver<SIZE>::NeighborArray Solver<SIZE>::InitNeighbors()
+{
     NeighborArray array{ 0 };
 
-    constexpr auto add_unique = [](std::array<uint, ICOUNT> & ar, const auto num) {
-        for (uint i = 0; i < ICOUNT && ar[i] != num; i++) {
-            if (ar[i] == 0) { ar[i] = num; return; }
-        }
+    constexpr auto uniqueAdd = [](auto& ar, auto num) {
+        uint32_t index = 0;
+        while (index < ICOUNT && ar[index] != num && ar[index] != 0)
+            ++index;
+
+        ar[index] = num;
     };
 
-    for (uint i = 0; i < NCOUNT*NCOUNT; i++) {
-        const uint x = i  % NCOUNT, y = i  / NCOUNT;
-        const uint box_first = y / SIZE * SIZE * NCOUNT + x / SIZE * SIZE;
+    for (uint32_t i = 0; i < NCOUNT*NCOUNT; ++i)
+    {
+        const uint32_t x = i % NCOUNT;
+        const uint32_t y = i / NCOUNT;
+        const uint32_t boxFirst = y / SIZE * SIZE * NCOUNT + x / SIZE * SIZE;
 
-        for (uint j = 0; j < NCOUNT; j++) {
-            add_unique(array[i], y * NCOUNT + j);
-            add_unique(array[i], x + j * NCOUNT);
-            add_unique(array[i], box_first + j/SIZE*NCOUNT + j%SIZE);
+        for (uint32_t j = 0; j < NCOUNT; ++j)
+        {
+            uniqueAdd(array[i], y * NCOUNT + j);
+            uniqueAdd(array[i], x + j * NCOUNT);
+            uniqueAdd(array[i], boxFirst + j / SIZE * NCOUNT + j % SIZE);
         }
     }
 
     return array;
 }
 
-template <uint SIZE>
-bool Solver<SIZE>::read_level_data(std::istream & stream) {
-    for (uint i = 0; i < NCOUNT*NCOUNT; i++) {
-        processed[i] = false;
-        possibilities[i].set();
+template <uint32_t SIZE>
+bool Solver<SIZE>::ReadLevelData(std::istream & stream)
+{
+    for (uint32_t i = 0; i < NCOUNT*NCOUNT; ++i)
+    {
+        m_processed[i] = false;
+        m_possibilities[i].set();
     }
 
     string str;
-    uint index = 0;
-    for (uint i = 0; i < NCOUNT; i++) {
-        if (!getline(stream, str))  { return false; }
-        if (str.length() != NCOUNT) { return false; }
+    uint32_t index = 0;
+    for (uint32_t i = 0; i < NCOUNT; ++i)
+    {
+        if (!getline(stream, str) || str.length() != NCOUNT)
+        {
+            cout << "Invalid input data" << endl;
+            return false;
+        }
 
-        for (const auto ch: str) {
-            if (::isdigit(ch)) {
-                numbers.at(index) = static_cast<uchar>(ch - '0');
-            } else if (::isalpha(ch)) {
-                numbers.at(index) = static_cast<uchar>(::toupper(ch) - 'A' + 10);
-            } else {
-                numbers.at(index) = EMPTY;
-            }
+        for (const auto ch: str)
+        {
+            if (::isdigit(ch))
+                m_numbers.at(index) = static_cast<uint8_t>(ch - '0');
+
+            else if (::isalpha(ch))
+                m_numbers.at(index) = static_cast<uint8_t>(::toupper(ch) - 'A' + 10);
+
+            else
+                m_numbers.at(index) = EMPTY;
+
             index++;
         }
     }
 
-    init_neighbors();
+    InitNeighbors();
     return true;
 }
 
-template <uint SIZE>
-void Solver<SIZE>::print_solution(std::ostream & stream) const {
-    uint index = 0;
-    for (uint i = 0; i < NCOUNT; i++) {
-        for (uint j = 0; j < NCOUNT; j++) {
-            if (numbers[index] == EMPTY) { stream << ' '; }
-            else if (numbers[index] < 10) {
-                stream << static_cast<char>(numbers[index] + '0');
-            } else {
-                stream << static_cast<char>(numbers[index] + 'A' - 10);
-            }
+template <uint32_t SIZE>
+void Solver<SIZE>::PrintSolution(std::ostream& stream) const
+{
+    if (!SolutionIsComplete())
+    {
+        cout << "Algorithm error occured" << endl;
+        return;
+    }
 
-            if (j % SIZE == SIZE - 1 && j != NCOUNT - 1) { stream << '|'; }
+    uint32_t index = 0;
+    for (uint32_t i = 0; i < NCOUNT; ++i)
+    {
+        for (uint32_t j = 0; j < NCOUNT; ++j)
+        {
+            if (m_numbers[index] == EMPTY)
+                stream << ' ';
+            else if (m_numbers[index] < 10)
+                stream << static_cast<char>(m_numbers[index] + '0');
+            else
+                stream << static_cast<char>(m_numbers[index] + 'A' - 10);
+
+            if (j % SIZE == SIZE - 1 && j != NCOUNT - 1)
+                stream << '|';
+
             index++;
         }
+
         stream << '\n';
-        if (i % SIZE == SIZE - 1 && i != NCOUNT - 1) {
-            for (uint k = 0; k < SIZE; k++) {
+        if (i % SIZE == SIZE - 1 && i != NCOUNT - 1)
+        {
+            for (uint32_t k = 0; k < SIZE; ++k)
+            {
                 stream << string(SIZE, '-');
-                if (k != SIZE - 1) { stream << '+'; }
+                if (k != SIZE - 1)
+                    stream << '+';
             }
+
             stream << "\n";
         }
     }
 }
 
-template <uint SIZE>
-void Solver<SIZE>::restrict_possibilities() {
-    for (uint i = 0; i < NCOUNT*NCOUNT; i++) {
-        if (numbers[i] == EMPTY || processed[i]) { continue; }
+template <uint32_t SIZE>
+void Solver<SIZE>::RestrictPossibilities()
+{
+    for (uint32_t i = 0; i < NCOUNT*NCOUNT; i++)
+    {
+        if (m_numbers[i] == EMPTY || m_processed[i])
+            continue;
 
-        for (const auto nbi: neighbors[i]) {
-            possibilities[nbi].reset(numbers[i] - 1);
-        }
-        processed[i] = true;
+        for (const auto nbi: neighbors[i])
+            m_possibilities[nbi].reset(m_numbers[i] - 1);
+
+        m_processed[i] = true;
     }
 }
 
-template <uint SIZE>
-tuple<bool, bool, bool> Solver<SIZE>::write_down_sole_possibilities() {
-    bool was_replenished = false;
-    bool is_complete = true;
+template <uint32_t SIZE>
+tuple<bool, bool, bool> Solver<SIZE>::WriteDownSolePossibilities()
+{
+    bool wasReplenished = false;
+    bool isComplete = true;
 
-    for (uint i = 0; i < NCOUNT*NCOUNT; i++) {
-        if (numbers[i] != EMPTY) { continue; }
+    for (uint32_t i = 0; i < NCOUNT*NCOUNT; i++)
+    {
+        if (m_numbers[i] != EMPTY)
+            continue;
 
-        switch(possibilities[i].count()) {
-            case 0: return {false, false, false};
-            case 1: {
+        switch(m_possibilities[i].count())
+        {
+            case 0:
+                return { false, false, false };
+            case 1:
+            {
                 // find the only possible number
-                numbers[i] = static_cast<uchar>(possibilities[i]._Find_first() + 1u);
-                was_replenished = true;
+                m_numbers[i] = static_cast<uint8_t>(m_possibilities[i]._Find_first() + 1u);
+                wasReplenished = true;
                 break;
             }
             default:
-                is_complete = false;
+                isComplete = false;
         }
     }
-    return {true, is_complete, was_replenished};
+    return { true, isComplete, wasReplenished };
 }
 
-// We did not add any numbers during the last iteration, so we have to assume
-template <uint SIZE>
-bool Solver<SIZE>::assume_number() {
-    uint index = 0;
-    while (numbers[index] != EMPTY) { index++; }
+// We did not add any m_numbers during the last iteration, so we have to assume
+template <uint32_t SIZE>
+bool Solver<SIZE>::AssumeNumber()
+{
+    uint32_t index = 0;
+    while (m_numbers[index] != EMPTY)
+        ++index;
 
-    auto poss_index = possibilities[index]._Find_first();
-    while (poss_index != NCOUNT) {
+    auto poss_index = m_possibilities[index]._Find_first();
+    while (poss_index != NCOUNT)
+    {
         auto backup = *this;
 
         /* cout << "assumption(" << index << ") number = " << poss_index + 1 << endl; */
-        numbers[index] = static_cast<uchar>(poss_index + 1u);
-        if (solve()) { return true; }
+        m_numbers[index] = static_cast<uint8_t>(poss_index + 1u);
+        if (Solve())
+            return true;
 
         /* cout << "wrong assumption(" << index << ")" << endl; */
         *this = move(backup);
-        poss_index = possibilities[index]._Find_next(poss_index);
+        poss_index = m_possibilities[index]._Find_next(poss_index);
     }
+
     return false;
 }
 
-template <uint SIZE>
-bool Solver<SIZE>::solve() {
-    while (true) {
-        // for every not empty cell update possibilities of its neighbors
-        restrict_possibilities();
+template <uint32_t SIZE>
+bool Solver<SIZE>::Solve()
+{
+    while (true)
+    {
+        // for every not empty cell update m_possibilities of its neighbors
+        RestrictPossibilities();
 
         // for every empty puzzle cell check if there is only one possible number
-        const auto [has_result, is_complete, was_replenished] = write_down_sole_possibilities();
-        if (!has_result || is_complete) { return has_result; }
+        const auto [isSolvable, isComplete, wasReplenished] = WriteDownSolePossibilities();
+        if (!isSolvable || isComplete)
+            return isSolvable;
 
-        // if numbers was not replenished make an assumption
-        if (!was_replenished) { return assume_number(); }
+        // if m_numbers was not replenished make an assumption
+        if (!wasReplenished)
+            return AssumeNumber();
     }
 }
 
 // check if the puzzle was completely solved
-template <uint SIZE>
-bool Solver<SIZE>::solution_is_complete() const {
-    for (const auto num: numbers) {
-        if (num == EMPTY) { return false; }
-    }
+template <uint32_t SIZE>
+bool Solver<SIZE>::SolutionIsComplete() const
+{
+    if (find(m_numbers.cbegin(), m_numbers.cend(), EMPTY) != m_numbers.cend())
+        return false;
 
-    auto is_unique = [](auto & r) {
-        sort(begin(r), end(r));
-        return unique(begin(r), end(r)) == end(r);
-    };
+    for (uint32_t i = 0; i < NCOUNT; ++i)
+    {
+        const uint32_t boxFirst = i % SIZE * SIZE * NCOUNT + i / SIZE * SIZE;
+        set<uint32_t> rowNums, colNums, boxNums;
 
-    for (uint i = 0; i < NCOUNT; i++) {
-        const uint box_first = i%SIZE*SIZE*NCOUNT + i/SIZE*SIZE;
-        array<uint, NCOUNT> vrow, vcol, vbox;
+        for (uint32_t j = 0; j < NCOUNT; ++j)
+        {
+            const uint32_t rowNum = i * NCOUNT + j;
+            const uint32_t colNum = j * NCOUNT + i;
+            const uint32_t boxNum = boxFirst + j / SIZE * NCOUNT + j % SIZE;
 
-        for (uint j = 0; j < NCOUNT; j++) {
-            vrow[j] = i * NCOUNT + j;
-            vcol[j] = j * NCOUNT + i;
-            vbox[j] = box_first + j/SIZE*NCOUNT + j%SIZE;
+            if (!rowNums.insert(rowNum).second
+             || !colNums.insert(colNum).second
+             || !boxNums.insert(boxNum).second)
+                return false;
         }
-
-        if (!is_unique(vrow) || !is_unique(vcol) || !is_unique(vbox)) { return false; }
     }
+
     return true;
 }
 

@@ -5,49 +5,52 @@
 #include <tuple>
 #include <array>
 #include <bitset>
+#include <cstdint>
 
 namespace Sudoku
 {
-using uchar = unsigned char;
-using uint  = unsigned int;
+    template <uint32_t SIZE>
+    class Solver
+    {
+    public:
+        Solver() = default;
 
-template <uint SIZE>
-class Solver {
-private:
-    static constexpr uint NCOUNT = SIZE*SIZE;
-    static constexpr uint ICOUNT = 3*SIZE*SIZE - 2*SIZE;
+        bool ReadLevelData(std::istream & stream);
+        bool Solve();
+        void PrintSolution(std::ostream & stream) const;
 
-    template <typename T>
-    using NNArray = std::array<T, NCOUNT*NCOUNT>;
-    using NeighborArray = NNArray<std::array<uint, ICOUNT>>;
+    private:
+        // types
+        static constexpr uint32_t NCOUNT = SIZE*SIZE;
+        static constexpr uint32_t ICOUNT = 3*SIZE*SIZE - 2*SIZE;
 
-    static constexpr NeighborArray init_neighbors();
-    static constexpr NeighborArray neighbors = init_neighbors();
+        template <typename T>
+        using NNArray = std::array<T, NCOUNT*NCOUNT>;
+        using NeighborArray = NNArray<std::array<uint32_t, ICOUNT>>;
 
-    NNArray<uchar> numbers;
-    NNArray<std::bitset<NCOUNT>> possibilities;
-    NNArray<bool> processed;
+        // methods
+        Solver(const Solver&) = default;
+        Solver& operator=(Solver &&) = default;
 
-    Solver(const Solver &) = default;
-    Solver(Solver &&) = delete;
-    Solver & operator=(const Solver &) = delete;
-    Solver & operator=(Solver &&) = default;
+        Solver& operator=(const Solver&) = delete;
+        Solver(Solver &&) = delete;
 
-    void restrict_possibilities();
-    std::tuple<bool, bool, bool> write_down_sole_possibilities();
-    bool assume_number();
+        void RestrictPossibilities();
+        std::tuple<bool, bool, bool> WriteDownSolePossibilities();
+        bool AssumeNumber();
+        bool SolutionIsComplete() const;
 
-public:
-    Solver() = default;
+        static constexpr NeighborArray InitNeighbors();
+        static constexpr NeighborArray neighbors = InitNeighbors();
 
-    bool read_level_data(std::istream & stream);
-    bool solve();
-    void print_solution(std::ostream & stream) const;
-    bool solution_is_complete() const;
-};
+        // data members
+        NNArray<uint8_t> m_numbers;
+        NNArray<std::bitset<NCOUNT>> m_possibilities;
+        NNArray<bool> m_processed;
+    };
 
-// explicit instantiation declaration
-extern template class Solver<3>;
+    // explicit instantiation declaration
+    extern template class Solver<3>;
 }
 
 #endif
