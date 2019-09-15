@@ -10,39 +10,48 @@ using namespace Sudoku;
 constexpr uint8_t EMPTY = static_cast<uint8_t>(0);
 
 template <uint32_t SIZE>
-constexpr typename Solver<SIZE>::NeighborArray Solver<SIZE>::InitNeighbors()
+constexpr typename Solver<SIZE>::narray_t Solver<SIZE>::InitRowNeighbors()
 {
-    NeighborArray array{ 0 };
+    narray_t result{ 0 };
 
-    constexpr auto uniqueAdd = [](auto& ar, auto num) {
-        uint32_t index = 0;
-        while (index < ICOUNT && ar[index] != num && ar[index] != 0)
-            ++index;
+    for (auto row = 0u; row < NCOUNT; ++row)
+        for (auto ind = 0u; ind < NCOUNT; ++ind)
+            result[row][ind] = row * NCOUNT + ind;
 
-        ar[index] = num;
-    };
+    return result;
+}
 
-    for (uint32_t i = 0; i < NCOUNT*NCOUNT; ++i)
-    {
-        const uint32_t x = i % NCOUNT;
-        const uint32_t y = i / NCOUNT;
-        const uint32_t boxFirst = y / SIZE * SIZE * NCOUNT + x / SIZE * SIZE;
+template <uint32_t SIZE>
+constexpr typename Solver<SIZE>::narray_t Solver<SIZE>::InitColNeighbors()
+{
+    narray_t result{ 0 };
 
-        for (uint32_t j = 0; j < NCOUNT; ++j)
+    for (auto col = 0u; col < NCOUNT; ++col)
+        for (auto ind = 0u; ind < NCOUNT; ++ind)
+            result[col][ind] = col + ind * NCOUNT;
+
+    return result;
+}
+
+template <uint32_t SIZE>
+constexpr typename Solver<SIZE>::narray_t Solver<SIZE>::InitBoxNeighbors()
+{
+    narray_t result{ 0 };
+
+    for (auto box = 0u; box < NCOUNT; ++box)
+        for (auto ind = 0u; ind < NCOUNT; ++ind)
         {
-            uniqueAdd(array[i], y * NCOUNT + j);
-            uniqueAdd(array[i], x + j * NCOUNT);
-            uniqueAdd(array[i], boxFirst + j / SIZE * NCOUNT + j % SIZE);
+            const uint32_t boxFirst = box / SIZE * SIZE * NCOUNT + box % SIZE * SIZE;
+            result[box][ind] = boxFirst + ind / SIZE * NCOUNT + ind % SIZE;
         }
-    }
 
-    return array;
+    return result;
 }
 
 template <uint32_t SIZE>
 bool Solver<SIZE>::ReadLevelData(std::istream & stream)
 {
-    for (uint32_t i = 0; i < NCOUNT*NCOUNT; ++i)
+    for (uint32_t i = 0; i < NCOUNT * NCOUNT; ++i)
     {
         m_processed[i] = false;
         m_possibilities[i].set();
@@ -54,7 +63,7 @@ bool Solver<SIZE>::ReadLevelData(std::istream & stream)
     {
         if (!getline(stream, str) || str.length() != NCOUNT)
         {
-            cout << "Invalid input data" << endl;
+            cerr << "Invalid input data" << endl;
             return false;
         }
 
@@ -62,27 +71,24 @@ bool Solver<SIZE>::ReadLevelData(std::istream & stream)
         {
             if (::isdigit(ch))
                 m_numbers.at(index) = static_cast<uint8_t>(ch - '0');
-
             else if (::isalpha(ch))
                 m_numbers.at(index) = static_cast<uint8_t>(::toupper(ch) - 'A' + 10);
-
             else
                 m_numbers.at(index) = EMPTY;
 
-            index++;
+            ++index;
         }
     }
 
-    InitNeighbors();
     return true;
 }
 
 template <uint32_t SIZE>
-void Solver<SIZE>::PrintSolution(std::ostream& stream) const
+void Solver<SIZE>::Print(std::ostream& stream) const
 {
-    if (!SolutionIsComplete())
+    if (!IsComplete())
     {
-        cout << "Algorithm error occured" << endl;
+        cerr << "Algorithm error occured" << endl;
         return;
     }
 
@@ -127,7 +133,13 @@ void Solver<SIZE>::RestrictPossibilities()
         if (m_numbers[i] == EMPTY || m_processed[i])
             continue;
 
-        for (const auto nbi: neighbors[i])
+        for (const auto nbi: m_rowNeighbors[row(i)])
+            m_possibilities[nbi].reset(m_numbers[i] - 1);
+
+        for (const auto nbi: m_colNeighbors[col(i)])
+            m_possibilities[nbi].reset(m_numbers[i] - 1);
+
+        for (const auto nbi: m_boxNeighbors[box(i)])
             m_possibilities[nbi].reset(m_numbers[i] - 1);
 
         m_processed[i] = true;
@@ -145,7 +157,7 @@ tuple<bool, bool, bool> Solver<SIZE>::WriteDownSolePossibilities()
         if (m_numbers[i] != EMPTY)
             continue;
 
-        switch(m_possibilities[i].count())
+        switch (m_possibilities[i].count())
         {
             case 0:
                 return { false, false, false };
@@ -194,7 +206,7 @@ bool Solver<SIZE>::Solve()
 {
     while (true)
     {
-        // for every not empty cell update m_possibilities of its neighbors
+        // for every not empty cell update m_possibilities of its m_neighbors
         RestrictPossibilities();
 
         // for every empty puzzle cell check if there is only one possible number
@@ -210,27 +222,27 @@ bool Solver<SIZE>::Solve()
 
 // check if the puzzle was completely solved
 template <uint32_t SIZE>
-bool Solver<SIZE>::SolutionIsComplete() const
+bool Solver<SIZE>::IsComplete() const
 {
     if (find(m_numbers.cbegin(), m_numbers.cend(), EMPTY) != m_numbers.cend())
         return false;
 
+    auto testUnique = [this](const auto& neighbors) {
+        set<uint32_t> nums;
+
+        for (auto nbi: neighbors)
+            if (!nums.insert(m_numbers[nbi]).second)
+                return false;
+
+        return true;
+    };
+
     for (uint32_t i = 0; i < NCOUNT; ++i)
     {
-        const uint32_t boxFirst = i % SIZE * SIZE * NCOUNT + i / SIZE * SIZE;
-        set<uint32_t> rowNums, colNums, boxNums;
-
-        for (uint32_t j = 0; j < NCOUNT; ++j)
-        {
-            const uint32_t rowNum = i * NCOUNT + j;
-            const uint32_t colNum = j * NCOUNT + i;
-            const uint32_t boxNum = boxFirst + j / SIZE * NCOUNT + j % SIZE;
-
-            if (!rowNums.insert(rowNum).second
-             || !colNums.insert(colNum).second
-             || !boxNums.insert(boxNum).second)
-                return false;
-        }
+        if (!testUnique(m_rowNeighbors[i])
+         || !testUnique(m_colNeighbors[i])
+         || !testUnique(m_boxNeighbors[i]))
+            return false;
     }
 
     return true;

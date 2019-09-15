@@ -17,16 +17,15 @@ namespace Sudoku
 
         bool ReadLevelData(std::istream & stream);
         bool Solve();
-        void PrintSolution(std::ostream & stream) const;
+        void Print(std::ostream & stream) const;
 
     private:
         // types
         static constexpr uint32_t NCOUNT = SIZE*SIZE;
-        static constexpr uint32_t ICOUNT = 3*SIZE*SIZE - 2*SIZE;
 
         template <typename T>
-        using NNArray = std::array<T, NCOUNT*NCOUNT>;
-        using NeighborArray = NNArray<std::array<uint32_t, ICOUNT>>;
+        using array_t = std::array<T, NCOUNT*NCOUNT>;
+        using narray_t = std::array<std::array<uint32_t, NCOUNT>, NCOUNT>;
 
         // methods
         Solver(const Solver&) = default;
@@ -38,15 +37,25 @@ namespace Sudoku
         void RestrictPossibilities();
         std::tuple<bool, bool, bool> WriteDownSolePossibilities();
         bool AssumeNumber();
-        bool SolutionIsComplete() const;
+        bool IsComplete() const;
 
-        static constexpr NeighborArray InitNeighbors();
-        static constexpr NeighborArray neighbors = InitNeighbors();
+        int col(int i) const { return i % NCOUNT; }
+        int row(int i) const { return i / NCOUNT; }
+        int box(int i) const { return (i / NCOUNT) / SIZE * SIZE + (i % NCOUNT) / SIZE; }
+
+        // static
+        static constexpr narray_t InitRowNeighbors();
+        static constexpr narray_t InitColNeighbors();
+        static constexpr narray_t InitBoxNeighbors();
+
+        static constexpr narray_t m_rowNeighbors = InitRowNeighbors();
+        static constexpr narray_t m_colNeighbors = InitColNeighbors();
+        static constexpr narray_t m_boxNeighbors = InitBoxNeighbors();
 
         // data members
-        NNArray<uint8_t> m_numbers;
-        NNArray<std::bitset<NCOUNT>> m_possibilities;
-        NNArray<bool> m_processed;
+        array_t<uint8_t> m_numbers;
+        array_t<std::bitset<NCOUNT>> m_possibilities;
+        array_t<bool> m_processed;
     };
 
     // explicit instantiation declaration

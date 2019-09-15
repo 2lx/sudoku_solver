@@ -11,5 +11,5 @@ int main()
         return EXIT_FAILURE;
 
     solver.Solve();
-    solver.PrintSolution(cout);
+    solver.Print(cout);
 }
