@@ -142,17 +142,13 @@ void Solver<SIZE>::updatePossibilities(uint32_t index)
 template <uint32_t SIZE>
 bool Solver<SIZE>::restrict()
 {
-    auto fn_check = [this](uint8_t number, uint32_t ind, const auto & neighbors)
+    auto fn_check = [this](uint8_t number, uint32_t ind, const auto & nbs)
     {
-        for (const auto & nbi: neighbors)
+        return nbs.cend() == find_if(nbs.cbegin(), nbs.cend(), [&](auto nbi)
         {
             const auto & data = m_data[nbi];
-
-            if (nbi != ind && data.number == EMPTY && data.possibilities[number - 1])
-                return false;
-        }
-
-        return true;
+            return nbi != ind && data.number == EMPTY && data.possibilities[number - 1];
+        });
     };
 
     bool result = false;
