@@ -15,9 +15,9 @@ namespace Sudoku
     public:
         Solver() = default;
 
-        bool ReadLevelData(std::istream & stream);
-        bool Solve();
-        void Print(std::ostream & stream) const;
+        bool read(std::istream & stream);
+        bool solve();
+        void print(std::ostream & stream) const;
 
     private:
         // types
@@ -34,10 +34,12 @@ namespace Sudoku
         Solver& operator=(const Solver&) = delete;
         Solver(Solver &&) = delete;
 
-        void RestrictPossibilities();
-        std::tuple<bool, bool, bool> WriteDownSolePossibilities();
-        bool AssumeNumber();
-        bool IsComplete() const;
+        void updatePossibilities(uint32_t index);
+        bool restrict();
+        bool assumeNumber();
+        bool isSolvable() const;
+        bool isFilled() const;
+        bool isCorrect() const;
 
         int col(int i) const { return i % NCOUNT; }
         int row(int i) const { return i / NCOUNT; }
@@ -55,7 +57,6 @@ namespace Sudoku
         // data members
         array_t<uint8_t> m_numbers;
         array_t<std::bitset<NCOUNT>> m_possibilities;
-        array_t<bool> m_processed;
     };
 
     // explicit instantiation declaration

@@ -50,13 +50,10 @@ constexpr typename Solver<SIZE>::narray_t Solver<SIZE>::InitBoxNeighbors()
 }
 
 template <uint32_t SIZE>
-bool Solver<SIZE>::ReadLevelData(std::istream & stream)
+bool Solver<SIZE>::read(std::istream & stream)
 {
     for (uint32_t i = 0; i < NCOUNT * NCOUNT; ++i)
-    {
-        m_processed[i] = false;
         m_possibilities[i].set();
-    }
 
     string str;
     uint32_t index = 0;
@@ -85,12 +82,12 @@ bool Solver<SIZE>::ReadLevelData(std::istream & stream)
 }
 
 template <uint32_t SIZE>
-void Solver<SIZE>::Print(std::ostream& stream) const
+void Solver<SIZE>::print(std::ostream& stream) const
 {
-    if (!IsComplete())
+    if (!isFilled() || !isCorrect())
     {
         cerr << "Algorithm error occured" << endl;
-        return;
+        /* return; */
     }
 
     uint32_t index = 0;
@@ -127,58 +124,61 @@ void Solver<SIZE>::Print(std::ostream& stream) const
 }
 
 template <uint32_t SIZE>
-void Solver<SIZE>::RestrictPossibilities()
+void Solver<SIZE>::updatePossibilities(uint32_t index)
 {
-    for (uint32_t i = 0; i < NCOUNT*NCOUNT; ++i)
-    {
-        if (m_numbers[i] == EMPTY || m_processed[i])
-            continue;
+    const size_t number = m_numbers[index] - 1;
 
-        const size_t number = m_numbers[i] - 1;
+    for (const auto nbi: m_rowNeighbors[row(index)])
+        m_possibilities[nbi].reset(number);
 
-        for (const auto nbi: m_rowNeighbors[row(i)])
-            m_possibilities[nbi].reset(number);
+    for (const auto nbi: m_colNeighbors[col(index)])
+        m_possibilities[nbi].reset(number);
 
-        for (const auto nbi: m_colNeighbors[col(i)])
-            m_possibilities[nbi].reset(number);
-
-        for (const auto nbi: m_boxNeighbors[box(i)])
-            m_possibilities[nbi].reset(number);
-
-        m_processed[i] = true;
-    }
+    for (const auto nbi: m_boxNeighbors[box(index)])
+        m_possibilities[nbi].reset(number);
 }
 
 template <uint32_t SIZE>
-tuple<bool, bool, bool> Solver<SIZE>::WriteDownSolePossibilities()
+bool Solver<SIZE>::restrict()
 {
-    bool isComplete = true;
-
-    for (uint32_t i = 0; i < NCOUNT*NCOUNT; i++)
+    auto fn_check = [this](uint8_t number, uint32_t ind, const auto & neighbors)
     {
-        if (m_numbers[i] != EMPTY)
-            continue;
-
-        switch (m_possibilities[i].count())
+        for (size_t i = 0; i < NCOUNT; ++i)
         {
-            case 0:
-                return { false, false, false };
-            case 1:
-            {
-                // find the only possible number
-                m_numbers[i] = static_cast<uint8_t>(m_possibilities[i]._Find_first() + 1u);
-                return { true, false, true };
-            }
-            default:
-                isComplete = false;
+            const auto nbi = neighbors[i];
+
+            if (nbi != ind && m_numbers[nbi] == EMPTY && m_possibilities[nbi][number - 1])
+                return false;
         }
-    }
-    return { true, isComplete, false };
+
+        return true;
+    };
+
+    bool result = false;
+
+    for (uint8_t number = 1; number <= NCOUNT; ++number)
+        for (uint32_t i = 0; i < NCOUNT*NCOUNT; ++i)
+        {
+            if (m_numbers[i] != EMPTY || m_possibilities[i][number - 1] == false)
+                continue;
+
+            if (m_possibilities[i].count() == 1
+             || fn_check(number, i, m_rowNeighbors[row(i)])
+             || fn_check(number, i, m_colNeighbors[col(i)])
+             || fn_check(number, i, m_boxNeighbors[box(i)]))
+            {
+                m_numbers[i] = number;
+                updatePossibilities(i);
+                result = true;
+            }
+        }
+
+    return result;
 }
 
 // We did not add any m_numbers during the last iteration, so we have to assume
 template <uint32_t SIZE>
-bool Solver<SIZE>::AssumeNumber()
+bool Solver<SIZE>::assumeNumber()
 {
     uint32_t index = 0;
     while (m_numbers[index] != EMPTY)
@@ -189,12 +189,14 @@ bool Solver<SIZE>::AssumeNumber()
     {
         auto backup = *this;
 
-//        cout << "assumption(" << index << ") number = " << poss_index + 1 << endl;
+        print(cout);
+        cout << "assume index=" << index << ", number=" << poss_index + 1 << endl;
         m_numbers[index] = static_cast<uint8_t>(poss_index + 1u);
-        if (Solve())
+
+        if (solve())
             return true;
 
-//        cout << "wrong assumption(" << index << ")" << endl;
+        cout << "wrong assumption(" << index << ")" << endl;
         *this = move(backup);
         poss_index = m_possibilities[index]._Find_next(poss_index);
     }
@@ -203,31 +205,42 @@ bool Solver<SIZE>::AssumeNumber()
 }
 
 template <uint32_t SIZE>
-bool Solver<SIZE>::Solve()
+bool Solver<SIZE>::solve()
 {
+    for (uint32_t i = 0; i < NCOUNT * NCOUNT; ++i)
+        if (m_numbers[i] != EMPTY)
+            updatePossibilities(i);
+
     while (true)
     {
-        // for every not empty cell update m_possibilities of its m_neighbors
-        RestrictPossibilities();
-
-        // for every empty puzzle cell check if there is only one possible number
-        const auto [isSolvable, isComplete, wasReplenished] = WriteDownSolePossibilities();
-        if (!isSolvable || isComplete)
+        const bool isSolvable = this->isSolvable();
+        if (isFilled() || !isSolvable)
             return isSolvable;
 
-        // if m_numbers was not replenished make an assumption
-        if (!wasReplenished)
-            return AssumeNumber();
+        if (!restrict())
+            return assumeNumber();
     }
 }
 
-// check if the puzzle was completely solved
 template <uint32_t SIZE>
-bool Solver<SIZE>::IsComplete() const
+bool Solver<SIZE>::isFilled() const
 {
-    if (find(m_numbers.cbegin(), m_numbers.cend(), EMPTY) != m_numbers.cend())
-        return false;
+    return m_numbers.cend() == find(m_numbers.cbegin(), m_numbers.cend(), EMPTY);
+}
 
+template <uint32_t SIZE>
+bool Solver<SIZE>::isSolvable() const
+{
+    for (uint32_t i = 0; i < NCOUNT*NCOUNT; i++)
+        if (m_numbers[i] == EMPTY && m_possibilities[i].count() == 0)
+            return false;
+
+    return true;
+}
+
+template <uint32_t SIZE>
+bool Solver<SIZE>::isCorrect() const
+{
     auto testUnique = [this](const auto& neighbors) {
         set<uint32_t> nums;
 

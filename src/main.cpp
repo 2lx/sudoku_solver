@@ -7,9 +7,9 @@ int main()
 {
     Sudoku::Solver<3> solver;
 
-    if (!solver.ReadLevelData(cin))
+    if (!solver.read(cin))
         return EXIT_FAILURE;
 
-    solver.Solve();
-    solver.Print(cout);
+    solver.solve();
+    solver.print(cout);
 }
