@@ -39,11 +39,12 @@ constexpr typename Solver<SIZE>::narray_t Solver<SIZE>::InitBoxNeighbors()
     narray_t result{ 0 };
 
     for (auto box = 0u; box < NCOUNT; ++box)
+    {
+        const uint32_t boxFirst = box / SIZE * SIZE * NCOUNT + box % SIZE * SIZE;
+
         for (auto ind = 0u; ind < NCOUNT; ++ind)
-        {
-            const uint32_t boxFirst = box / SIZE * SIZE * NCOUNT + box % SIZE * SIZE;
             result[box][ind] = boxFirst + ind / SIZE * NCOUNT + ind % SIZE;
-        }
+    }
 
     return result;
 }
@@ -128,19 +129,21 @@ void Solver<SIZE>::Print(std::ostream& stream) const
 template <uint32_t SIZE>
 void Solver<SIZE>::RestrictPossibilities()
 {
-    for (uint32_t i = 0; i < NCOUNT*NCOUNT; i++)
+    for (uint32_t i = 0; i < NCOUNT*NCOUNT; ++i)
     {
         if (m_numbers[i] == EMPTY || m_processed[i])
             continue;
 
+        const size_t number = m_numbers[i] - 1;
+
         for (const auto nbi: m_rowNeighbors[row(i)])
-            m_possibilities[nbi].reset(m_numbers[i] - 1);
+            m_possibilities[nbi].reset(number);
 
         for (const auto nbi: m_colNeighbors[col(i)])
-            m_possibilities[nbi].reset(m_numbers[i] - 1);
+            m_possibilities[nbi].reset(number);
 
         for (const auto nbi: m_boxNeighbors[box(i)])
-            m_possibilities[nbi].reset(m_numbers[i] - 1);
+            m_possibilities[nbi].reset(number);
 
         m_processed[i] = true;
     }
@@ -149,7 +152,6 @@ void Solver<SIZE>::RestrictPossibilities()
 template <uint32_t SIZE>
 tuple<bool, bool, bool> Solver<SIZE>::WriteDownSolePossibilities()
 {
-    bool wasReplenished = false;
     bool isComplete = true;
 
     for (uint32_t i = 0; i < NCOUNT*NCOUNT; i++)
@@ -165,14 +167,13 @@ tuple<bool, bool, bool> Solver<SIZE>::WriteDownSolePossibilities()
             {
                 // find the only possible number
                 m_numbers[i] = static_cast<uint8_t>(m_possibilities[i]._Find_first() + 1u);
-                wasReplenished = true;
-                break;
+                return { true, false, true };
             }
             default:
                 isComplete = false;
         }
     }
-    return { true, isComplete, wasReplenished };
+    return { true, isComplete, false };
 }
 
 // We did not add any m_numbers during the last iteration, so we have to assume
@@ -188,12 +189,12 @@ bool Solver<SIZE>::AssumeNumber()
     {
         auto backup = *this;
 
-        /* cout << "assumption(" << index << ") number = " << poss_index + 1 << endl; */
+//        cout << "assumption(" << index << ") number = " << poss_index + 1 << endl;
         m_numbers[index] = static_cast<uint8_t>(poss_index + 1u);
         if (Solve())
             return true;
 
-        /* cout << "wrong assumption(" << index << ")" << endl; */
+//        cout << "wrong assumption(" << index << ")" << endl;
         *this = move(backup);
         poss_index = m_possibilities[index]._Find_next(poss_index);
     }
