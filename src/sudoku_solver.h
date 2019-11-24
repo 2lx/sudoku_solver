@@ -20,17 +20,14 @@ namespace Sudoku
         void print(std::ostream & stream) const;
 
     private:
-        // types
         static constexpr uint32_t NCOUNT = SIZE*SIZE;
 
         template <typename T>
         using array_t = std::array<T, NCOUNT*NCOUNT>;
         using narray_t = std::array<std::array<uint32_t, NCOUNT>, NCOUNT>;
 
-        // methods
-        Solver(const Solver&) = default;
-        Solver& operator=(Solver &&) = default;
-
+        Solver(const Solver&) = delete;
+        Solver& operator=(Solver &&) = delete;
         Solver& operator=(const Solver&) = delete;
         Solver(Solver &&) = delete;
 
@@ -41,9 +38,9 @@ namespace Sudoku
         bool isFilled() const;
         bool isCorrect() const;
 
-        int col(int i) const { return i % NCOUNT; }
-        int row(int i) const { return i / NCOUNT; }
-        int box(int i) const { return (i / NCOUNT) / SIZE * SIZE + (i % NCOUNT) / SIZE; }
+        size_t col(size_t i) const { return i % NCOUNT; }
+        size_t row(size_t i) const { return i / NCOUNT; }
+        size_t box(size_t i) const { return (i / NCOUNT) / SIZE * SIZE + (i % NCOUNT) / SIZE; }
 
         // static
         static constexpr narray_t InitRowNeighbors();
@@ -54,9 +51,14 @@ namespace Sudoku
         static constexpr narray_t m_colNeighbors = InitColNeighbors();
         static constexpr narray_t m_boxNeighbors = InitBoxNeighbors();
 
-        // data members
-        array_t<uint8_t> m_numbers;
-        array_t<std::bitset<NCOUNT>> m_possibilities;
+    private:
+        struct CellData
+        {
+            uint8_t number;
+            std::bitset<NCOUNT> possibilities;
+        };
+
+        array_t<CellData> m_data;
     };
 
     // explicit instantiation declaration
