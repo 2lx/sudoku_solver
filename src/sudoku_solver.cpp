@@ -52,9 +52,6 @@ constexpr typename Solver<SIZE>::narray_t Solver<SIZE>::InitBoxNeighbors()
 template <uint32_t SIZE>
 bool Solver<SIZE>::read(std::istream & stream)
 {
-    for (auto & data: m_data)
-        data.possibilities.set();
-
     string str;
     uint32_t index = 0;
     for (uint32_t i = 0; i < NCOUNT; ++i)
@@ -67,15 +64,7 @@ bool Solver<SIZE>::read(std::istream & stream)
 
         for (const auto ch: str)
         {
-            auto & number = m_data[index].number;
-
-            if (::isdigit(ch))
-                number = static_cast<uint8_t>(ch - '0');
-            else if (::isalpha(ch))
-                number = static_cast<uint8_t>(::toupper(ch) - 'A' + 10);
-            else
-                number = EMPTY;
-
+            m_data[index].fromChar(ch);
             ++index;
         }
     }
@@ -94,15 +83,7 @@ void Solver<SIZE>::print(std::ostream& stream) const
     {
         for (uint32_t j = 0; j < NCOUNT; ++j)
         {
-            const auto & number = m_data[index].number;
-
-            if (number == EMPTY)
-                stream << ' ';
-            else if (number < 10)
-                stream << static_cast<char>(number + '0');
-            else
-                stream << static_cast<char>(number + 'A' - 10);
-
+            stream << m_data[index];
             if (j % SIZE == SIZE - 1 && j != NCOUNT - 1)
                 stream << '|';
 
@@ -127,16 +108,16 @@ void Solver<SIZE>::print(std::ostream& stream) const
 template <uint32_t SIZE>
 void Solver<SIZE>::updatePossibilities(uint32_t index)
 {
-    const size_t number = m_data[index].number - 1;
+    const size_t number = m_data[index].number();
 
     for (const auto nbi: m_rowNeighbors[row(index)])
-        m_data[nbi].possibilities.reset(number);
+        m_data[nbi].disable(number);
 
     for (const auto nbi: m_colNeighbors[col(index)])
-        m_data[nbi].possibilities.reset(number);
+        m_data[nbi].disable(number);
 
     for (const auto nbi: m_boxNeighbors[box(index)])
-        m_data[nbi].possibilities.reset(number);
+        m_data[nbi].disable(number);
 }
 
 template <uint32_t SIZE>
@@ -147,7 +128,7 @@ bool Solver<SIZE>::restrict()
         return nbs.cend() == find_if(nbs.cbegin(), nbs.cend(), [&](auto nbi)
         {
             const auto & data = m_data[nbi];
-            return nbi != ind && data.number == EMPTY && data.possibilities[number - 1];
+            return nbi != ind && data.is_empty() && data.is_possible(number);
         });
     };
 
@@ -158,15 +139,15 @@ bool Solver<SIZE>::restrict()
         {
             auto & data = m_data[i];
 
-            if (data.number != EMPTY || data.possibilities[number - 1] == false)
+            if (!data.is_empty() || !data.is_possible(number))
                 continue;
 
-            if (data.possibilities.count() == 1
+            if (data.is_onlyone()
              || fn_check(number, i, m_rowNeighbors[row(i)])
              || fn_check(number, i, m_colNeighbors[col(i)])
              || fn_check(number, i, m_boxNeighbors[box(i)]))
             {
-                data.number = number;
+                data.setNumber(number);
                 updatePossibilities(i);
                 result = true;
             }
@@ -180,26 +161,26 @@ template <uint32_t SIZE>
 bool Solver<SIZE>::assumeNumber()
 {
     const auto it = find_if(m_data.begin(), m_data.end(),
-            [](const auto & data) { return data.number == EMPTY; });
+            [](const auto & data) { return data.is_empty(); });
 
-    auto poss_index = it->possibilities._Find_first();
-    while (poss_index != NCOUNT)
+    const size_t index = distance(m_data.begin(), it);
+    const auto poss = it->possibilities();
+
+    for (const auto & poss_number: poss)
     {
         const auto backup = m_data;
-        const size_t index = distance(m_data.begin(), it);
 
         print(cout);
         cout << "assume [" << col(index) << "," << row(index)
-             << "]=" << poss_index + 1 << endl;
-        it->number = static_cast<uint8_t>(poss_index + 1u);
+             << "]=" << poss_number << endl;
+        it->setNumber(poss_number);
 
         if (solve())
             return true;
 
         cout << "wrong assumption [" << col(index) << "," << row(index)
-             << "]=" << poss_index + 1 << endl;
+             << "]=" << poss_number << endl;
         m_data = move(backup);
-        poss_index = it->possibilities._Find_next(poss_index);
     }
 
     return false;
@@ -210,7 +191,7 @@ bool Solver<SIZE>::solve()
 {
     // initially update possibilities
     for (uint32_t i = 0; i < NCOUNT * NCOUNT; ++i)
-        if (m_data[i].number != EMPTY)
+        if (m_data[i].number() != EMPTY)
             updatePossibilities(i);
 
     while (true)
@@ -227,25 +208,25 @@ bool Solver<SIZE>::solve()
 template <uint32_t SIZE>
 bool Solver<SIZE>::isFilled() const
 {
-    return m_data.cend() == find_if(m_data.cbegin(), m_data.cend(),
-            [](const auto & data) { return data.number == EMPTY; });
+    return none_of(m_data.cbegin(), m_data.cend(),
+            [](const auto & data) { return data.is_empty(); });
 }
 
 template <uint32_t SIZE>
 bool Solver<SIZE>::isSolvable() const
 {
-    return m_data.cend() == find_if(m_data.cbegin(), m_data.cend(),
-            [](const auto & data) { return data.number == EMPTY && data.possibilities == 0; });
+    return none_of(m_data.cbegin(), m_data.cend(),
+            [](const auto & data) { return data.is_inconsistent(); });
 }
 
 template <uint32_t SIZE>
 bool Solver<SIZE>::isCorrect() const
 {
     auto testUnique = [this](const auto& neighbors) {
-        set<uint32_t> nums;
+        set<size_t> nums;
 
         for (auto nbi: neighbors)
-            if (!nums.insert(m_data[nbi].number).second)
+            if (!nums.insert(m_data[nbi].number()).second)
                 return false;
 
         return true;

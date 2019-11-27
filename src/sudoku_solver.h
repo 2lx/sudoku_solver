@@ -1,10 +1,10 @@
 #ifndef SUDOKU_SOLVER_H
 #define SUDOKU_SOLVER_H
 
+#include "cell.h"
 #include <iosfwd>
 #include <tuple>
 #include <array>
-#include <bitset>
 #include <cstdint>
 
 namespace Sudoku
@@ -52,13 +52,7 @@ namespace Sudoku
         static constexpr narray_t m_boxNeighbors = InitBoxNeighbors();
 
     private:
-        struct CellData
-        {
-            uint8_t number;
-            std::bitset<NCOUNT> possibilities;
-        };
-
-        array_t<CellData> m_data;
+        array_t<Cell<NCOUNT>> m_data;
     };
 
     // explicit instantiation declaration
