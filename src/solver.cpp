@@ -65,9 +65,6 @@ bool Solver<SIZE>::read(std::istream & stream)
 template <size_t SIZE>
 void Solver<SIZE>::print(std::ostream & stream) const
 {
-    if (!isFilled() || !isCorrect())
-        cout << "Current state is not a valid solution" << endl;
-
     static const string rowdelim = []
     {
         const vector<string> result(SIZE, string(SIZE, '-'));

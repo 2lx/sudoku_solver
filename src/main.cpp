@@ -9,10 +9,12 @@ int main()
 
     if (!solver.read(cin))
     {
-        cout << "Wrong input format" << endl;
+        cout << "Wrong input string format" << endl;
         return EXIT_FAILURE;
     }
 
     solver.solve();
+
+    cout << (solver.isCorrect() ? "Result:\n" : "No result. Current state:\n");
     solver.print(cout);
 }

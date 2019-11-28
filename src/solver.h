@@ -18,6 +18,7 @@ public:
     bool read(std::istream & stream);
     bool solve();
     void print(std::ostream & stream) const;
+    bool isCorrect() const;
 
 private:
     static constexpr size_t NCOUNT = SIZE*SIZE;
@@ -33,7 +34,6 @@ private:
     bool assumeNumber();
     bool isSolvable() const;
     bool isFilled() const;
-    bool isCorrect() const;
 
     size_t col(size_t i) const { return i % NCOUNT; }
     size_t row(size_t i) const { return i / NCOUNT; }
