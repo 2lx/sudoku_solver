@@ -7,8 +7,6 @@
 using namespace std;
 using namespace Sudoku;
 
-constexpr uint8_t EMPTY = static_cast<uint8_t>(0);
-
 template <size_t SIZE>
 constexpr typename Solver<SIZE>::narray_t Solver<SIZE>::InitRowNeighbors()
 {
@@ -56,11 +54,15 @@ bool Solver<SIZE>::read(std::istream & stream)
         if (!(stream >> cell))
             return false;
 
+    for (size_t i = 0; i < NCOUNT * NCOUNT; ++i)
+        if (!m_cells[i].isEmpty())
+            updatePossibilities(i);
+
     return true;
 }
 
 template <size_t SIZE>
-void Solver<SIZE>::print(std::ostream& stream) const
+void Solver<SIZE>::print(std::ostream & stream) const
 {
     if (!isFilled() || !isCorrect())
         cout << "Current state is not a valid solution" << endl;
@@ -110,35 +112,37 @@ void Solver<SIZE>::updatePossibilities(size_t index)
 template <size_t SIZE>
 bool Solver<SIZE>::restrict()
 {
-    auto fn_check = [this](uint8_t number, size_t ind, const auto & nbs)
+    auto fn_check = [this](size_t number, size_t ind, const auto & nbs)
     {
-        return nbs.cend() == find_if(nbs.cbegin(), nbs.cend(), [&](auto nbi)
+        return none_of(nbs.cbegin(), nbs.cend(), [&](auto nbi)
         {
-            const auto & data = m_cells[nbi];
-            return nbi != ind && data.isEmpty() && data.isPossible(number);
+            const auto & cell = m_cells[nbi];
+            return nbi != ind && cell.isEmpty() && cell.isPossible(number);
         });
     };
 
     bool result = false;
+    for (size_t i = 0; i < NCOUNT * NCOUNT; ++i)
+    {
+        auto & cell = m_cells[i];
+        if (!cell.isEmpty())
+            continue;
 
-    for (uint8_t number = 1; number <= NCOUNT; ++number)
-        for (size_t i = 0; i < NCOUNT*NCOUNT; ++i)
+        const auto numbers = cell.possibilities();
+        for (const auto & number: numbers)
         {
-            auto & data = m_cells[i];
-
-            if (!data.isEmpty() || !data.isPossible(number))
-                continue;
-
-            if (data.isOnlyOne()
-             || fn_check(number, i, m_rowNeighbors[row(i)])
-             || fn_check(number, i, m_colNeighbors[col(i)])
-             || fn_check(number, i, m_boxNeighbors[box(i)]))
+            if (cell.isOnlyOne()
+                || fn_check(number, i, m_rowNeighbors[row(i)])
+                || fn_check(number, i, m_colNeighbors[col(i)])
+                || fn_check(number, i, m_boxNeighbors[box(i)]))
             {
-                data.setNumber(number);
+                cell.setNumber(number);
                 updatePossibilities(i);
                 result = true;
+                break;
             }
         }
+    }
 
     return result;
 }
@@ -148,7 +152,7 @@ template <size_t SIZE>
 bool Solver<SIZE>::assumeNumber()
 {
     const auto it = find_if(m_cells.begin(), m_cells.end(),
-            [](const auto & data) { return data.isEmpty(); });
+            [](const auto & cell) { return cell.isEmpty(); });
 
     const size_t index = distance(m_cells.begin(), it);
     const auto poss = it->possibilities();
@@ -160,7 +164,9 @@ bool Solver<SIZE>::assumeNumber()
         print(cout);
         cout << "assume [" << col(index) << "," << row(index)
              << "]=" << poss_number << endl;
+
         it->setNumber(poss_number);
+        updatePossibilities(index);
 
         if (solve())
             return true;
@@ -176,11 +182,6 @@ bool Solver<SIZE>::assumeNumber()
 template <size_t SIZE>
 bool Solver<SIZE>::solve()
 {
-    // initially update possibilities
-    for (size_t i = 0; i < NCOUNT * NCOUNT; ++i)
-        if (m_cells[i].number() != EMPTY)
-            updatePossibilities(i);
-
     while (true)
     {
         const bool isSolvable = this->isSolvable();
@@ -196,14 +197,14 @@ template <size_t SIZE>
 bool Solver<SIZE>::isFilled() const
 {
     return none_of(m_cells.cbegin(), m_cells.cend(),
-            [](const auto & data) { return data.isEmpty(); });
+            [](const auto & cell) { return cell.isEmpty(); });
 }
 
 template <size_t SIZE>
 bool Solver<SIZE>::isSolvable() const
 {
     return none_of(m_cells.cbegin(), m_cells.cend(),
-            [](const auto & data) { return data.isInconsistent(); });
+            [](const auto & cell) { return cell.isInconsistent(); });
 }
 
 template <size_t SIZE>
