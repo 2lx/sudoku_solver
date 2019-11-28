@@ -1,4 +1,5 @@
 #include "solver.h"
+#include "string_join.h"
 
 #include <iostream>
 #include <algorithm>
@@ -67,31 +68,34 @@ void Solver<SIZE>::print(std::ostream & stream) const
     if (!isFilled() || !isCorrect())
         cout << "Current state is not a valid solution" << endl;
 
-    size_t index = 0;
-    for (size_t i = 0; i < NCOUNT; ++i)
+    static const string rowdelim = []
     {
-        for (size_t j = 0; j < NCOUNT; ++j)
-        {
-            stream << m_cells[index];
-            if (j % SIZE == SIZE - 1 && j != NCOUNT - 1)
-                stream << '|';
+        const vector<string> result(SIZE, string(SIZE, '-'));
+        return string_join(result, "|") + '\n';
+    }();
 
-            index++;
-        }
+    ostringstream ss;
+    array<string, SIZE> strings, rows, blocks;
+    size_t index = 0;
 
-        stream << '\n';
-        if (i % SIZE == SIZE - 1 && i != NCOUNT - 1)
+    for (size_t iblock = 0; iblock < SIZE; ++iblock)
+    {
+        for (size_t irow = 0; irow < SIZE; ++irow)
         {
-            for (size_t k = 0; k < SIZE; ++k)
+            for (size_t istring = 0; istring < SIZE; ++istring)
             {
-                stream << string(SIZE, '-');
-                if (k != SIZE - 1)
-                    stream << '+';
-            }
+                ss.seekp(0);
+                for (size_t ichar = 0; ichar < SIZE; ++ichar)
+                    ss << m_cells[index++];
 
-            stream << "\n";
+                strings[istring] = ss.str();
+            }
+            rows[irow] = string_join(strings, "|");
         }
+        blocks[iblock] = string_join(rows, "\n") + '\n';
     }
+
+    stream << string_join(blocks, rowdelim.c_str());
 }
 
 template <size_t SIZE>
