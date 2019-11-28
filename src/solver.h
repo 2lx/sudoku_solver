@@ -1,15 +1,14 @@
-#ifndef SUDOKU_SOLVER_H
-#define SUDOKU_SOLVER_H
+#ifndef SOLVER_H
+#define SOLVER_H
 
 #include "cell.h"
+
 #include <iosfwd>
-#include <tuple>
 #include <array>
-#include <cstdint>
 
 namespace Sudoku
 {
-    template <uint32_t SIZE>
+    template <size_t SIZE>
     class Solver
     {
     public:
@@ -20,18 +19,18 @@ namespace Sudoku
         void print(std::ostream & stream) const;
 
     private:
-        static constexpr uint32_t NCOUNT = SIZE*SIZE;
+        static constexpr size_t NCOUNT = SIZE*SIZE;
 
         template <typename T>
         using array_t = std::array<T, NCOUNT*NCOUNT>;
-        using narray_t = std::array<std::array<uint32_t, NCOUNT>, NCOUNT>;
+        using narray_t = std::array<std::array<size_t, NCOUNT>, NCOUNT>;
 
         Solver(const Solver&) = delete;
         Solver& operator=(Solver &&) = delete;
         Solver& operator=(const Solver&) = delete;
         Solver(Solver &&) = delete;
 
-        void updatePossibilities(uint32_t index);
+        void updatePossibilities(size_t index);
         bool restrict();
         bool assumeNumber();
         bool isSolvable() const;
@@ -52,7 +51,7 @@ namespace Sudoku
         static constexpr narray_t m_boxNeighbors = InitBoxNeighbors();
 
     private:
-        array_t<Cell<NCOUNT>> m_data;
+        array_t<Cell<NCOUNT>> m_cells;
     };
 
     // explicit instantiation declaration

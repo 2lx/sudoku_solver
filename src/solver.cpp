@@ -1,4 +1,4 @@
-#include "sudoku_solver.h"
+#include "solver.h"
 
 #include <iostream>
 #include <algorithm>
@@ -9,7 +9,7 @@ using namespace Sudoku;
 
 constexpr uint8_t EMPTY = static_cast<uint8_t>(0);
 
-template <uint32_t SIZE>
+template <size_t SIZE>
 constexpr typename Solver<SIZE>::narray_t Solver<SIZE>::InitRowNeighbors()
 {
     narray_t result{ 0 };
@@ -21,7 +21,7 @@ constexpr typename Solver<SIZE>::narray_t Solver<SIZE>::InitRowNeighbors()
     return result;
 }
 
-template <uint32_t SIZE>
+template <size_t SIZE>
 constexpr typename Solver<SIZE>::narray_t Solver<SIZE>::InitColNeighbors()
 {
     narray_t result{ 0 };
@@ -33,14 +33,14 @@ constexpr typename Solver<SIZE>::narray_t Solver<SIZE>::InitColNeighbors()
     return result;
 }
 
-template <uint32_t SIZE>
+template <size_t SIZE>
 constexpr typename Solver<SIZE>::narray_t Solver<SIZE>::InitBoxNeighbors()
 {
     narray_t result{ 0 };
 
     for (auto box = 0u; box < NCOUNT; ++box)
     {
-        const uint32_t boxFirst = box / SIZE * SIZE * NCOUNT + box % SIZE * SIZE;
+        const size_t boxFirst = box / SIZE * SIZE * NCOUNT + box % SIZE * SIZE;
 
         for (auto ind = 0u; ind < NCOUNT; ++ind)
             result[box][ind] = boxFirst + ind / SIZE * NCOUNT + ind % SIZE;
@@ -49,41 +49,28 @@ constexpr typename Solver<SIZE>::narray_t Solver<SIZE>::InitBoxNeighbors()
     return result;
 }
 
-template <uint32_t SIZE>
+template <size_t SIZE>
 bool Solver<SIZE>::read(std::istream & stream)
 {
-    string str;
-    uint32_t index = 0;
-    for (uint32_t i = 0; i < NCOUNT; ++i)
-    {
-        if (!getline(stream, str) || str.length() != NCOUNT)
-        {
-            cerr << "Invalid input data" << endl;
+    for (auto & cell: m_cells)
+        if (!(stream >> cell))
             return false;
-        }
-
-        for (const auto ch: str)
-        {
-            m_data[index].fromChar(ch);
-            ++index;
-        }
-    }
 
     return true;
 }
 
-template <uint32_t SIZE>
+template <size_t SIZE>
 void Solver<SIZE>::print(std::ostream& stream) const
 {
     if (!isFilled() || !isCorrect())
         cout << "Current state is not a valid solution" << endl;
 
-    uint32_t index = 0;
-    for (uint32_t i = 0; i < NCOUNT; ++i)
+    size_t index = 0;
+    for (size_t i = 0; i < NCOUNT; ++i)
     {
-        for (uint32_t j = 0; j < NCOUNT; ++j)
+        for (size_t j = 0; j < NCOUNT; ++j)
         {
-            stream << m_data[index];
+            stream << m_cells[index];
             if (j % SIZE == SIZE - 1 && j != NCOUNT - 1)
                 stream << '|';
 
@@ -93,7 +80,7 @@ void Solver<SIZE>::print(std::ostream& stream) const
         stream << '\n';
         if (i % SIZE == SIZE - 1 && i != NCOUNT - 1)
         {
-            for (uint32_t k = 0; k < SIZE; ++k)
+            for (size_t k = 0; k < SIZE; ++k)
             {
                 stream << string(SIZE, '-');
                 if (k != SIZE - 1)
@@ -105,44 +92,44 @@ void Solver<SIZE>::print(std::ostream& stream) const
     }
 }
 
-template <uint32_t SIZE>
-void Solver<SIZE>::updatePossibilities(uint32_t index)
+template <size_t SIZE>
+void Solver<SIZE>::updatePossibilities(size_t index)
 {
-    const size_t number = m_data[index].number();
+    const size_t number = m_cells[index].number();
 
     for (const auto nbi: m_rowNeighbors[row(index)])
-        m_data[nbi].disable(number);
+        m_cells[nbi].disable(number);
 
     for (const auto nbi: m_colNeighbors[col(index)])
-        m_data[nbi].disable(number);
+        m_cells[nbi].disable(number);
 
     for (const auto nbi: m_boxNeighbors[box(index)])
-        m_data[nbi].disable(number);
+        m_cells[nbi].disable(number);
 }
 
-template <uint32_t SIZE>
+template <size_t SIZE>
 bool Solver<SIZE>::restrict()
 {
-    auto fn_check = [this](uint8_t number, uint32_t ind, const auto & nbs)
+    auto fn_check = [this](uint8_t number, size_t ind, const auto & nbs)
     {
         return nbs.cend() == find_if(nbs.cbegin(), nbs.cend(), [&](auto nbi)
         {
-            const auto & data = m_data[nbi];
-            return nbi != ind && data.is_empty() && data.is_possible(number);
+            const auto & data = m_cells[nbi];
+            return nbi != ind && data.isEmpty() && data.isPossible(number);
         });
     };
 
     bool result = false;
 
     for (uint8_t number = 1; number <= NCOUNT; ++number)
-        for (uint32_t i = 0; i < NCOUNT*NCOUNT; ++i)
+        for (size_t i = 0; i < NCOUNT*NCOUNT; ++i)
         {
-            auto & data = m_data[i];
+            auto & data = m_cells[i];
 
-            if (!data.is_empty() || !data.is_possible(number))
+            if (!data.isEmpty() || !data.isPossible(number))
                 continue;
 
-            if (data.is_onlyone()
+            if (data.isOnlyOne()
              || fn_check(number, i, m_rowNeighbors[row(i)])
              || fn_check(number, i, m_colNeighbors[col(i)])
              || fn_check(number, i, m_boxNeighbors[box(i)]))
@@ -157,18 +144,18 @@ bool Solver<SIZE>::restrict()
 }
 
 // We did not add any m_numbers during the last iteration, so we have to assume
-template <uint32_t SIZE>
+template <size_t SIZE>
 bool Solver<SIZE>::assumeNumber()
 {
-    const auto it = find_if(m_data.begin(), m_data.end(),
-            [](const auto & data) { return data.is_empty(); });
+    const auto it = find_if(m_cells.begin(), m_cells.end(),
+            [](const auto & data) { return data.isEmpty(); });
 
-    const size_t index = distance(m_data.begin(), it);
+    const size_t index = distance(m_cells.begin(), it);
     const auto poss = it->possibilities();
 
     for (const auto & poss_number: poss)
     {
-        const auto backup = m_data;
+        const auto backup = m_cells;
 
         print(cout);
         cout << "assume [" << col(index) << "," << row(index)
@@ -180,18 +167,18 @@ bool Solver<SIZE>::assumeNumber()
 
         cout << "wrong assumption [" << col(index) << "," << row(index)
              << "]=" << poss_number << endl;
-        m_data = move(backup);
+        m_cells = move(backup);
     }
 
     return false;
 }
 
-template <uint32_t SIZE>
+template <size_t SIZE>
 bool Solver<SIZE>::solve()
 {
     // initially update possibilities
-    for (uint32_t i = 0; i < NCOUNT * NCOUNT; ++i)
-        if (m_data[i].number() != EMPTY)
+    for (size_t i = 0; i < NCOUNT * NCOUNT; ++i)
+        if (m_cells[i].number() != EMPTY)
             updatePossibilities(i);
 
     while (true)
@@ -205,34 +192,34 @@ bool Solver<SIZE>::solve()
     }
 }
 
-template <uint32_t SIZE>
+template <size_t SIZE>
 bool Solver<SIZE>::isFilled() const
 {
-    return none_of(m_data.cbegin(), m_data.cend(),
-            [](const auto & data) { return data.is_empty(); });
+    return none_of(m_cells.cbegin(), m_cells.cend(),
+            [](const auto & data) { return data.isEmpty(); });
 }
 
-template <uint32_t SIZE>
+template <size_t SIZE>
 bool Solver<SIZE>::isSolvable() const
 {
-    return none_of(m_data.cbegin(), m_data.cend(),
-            [](const auto & data) { return data.is_inconsistent(); });
+    return none_of(m_cells.cbegin(), m_cells.cend(),
+            [](const auto & data) { return data.isInconsistent(); });
 }
 
-template <uint32_t SIZE>
+template <size_t SIZE>
 bool Solver<SIZE>::isCorrect() const
 {
     auto testUnique = [this](const auto& neighbors) {
         set<size_t> nums;
 
         for (auto nbi: neighbors)
-            if (!nums.insert(m_data[nbi].number()).second)
+            if (!nums.insert(m_cells[nbi].number()).second)
                 return false;
 
         return true;
     };
 
-    for (uint32_t i = 0; i < NCOUNT; ++i)
+    for (size_t i = 0; i < NCOUNT; ++i)
     {
         if (!testUnique(m_rowNeighbors[i])
          || !testUnique(m_colNeighbors[i])
