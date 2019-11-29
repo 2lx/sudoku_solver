@@ -227,3 +227,4 @@ bool Solver<SIZE>::isCorrect() const
 
 // explicit instantiation definition
 template class Sudoku::Solver<3>;
+template class Sudoku::Solver<4>;

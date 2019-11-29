@@ -29,6 +29,7 @@ private:
     Solver & operator=(const Solver &) = delete;
     Solver(Solver &&) = delete;
 
+private:
     void updatePossibilities(size_t index);
     bool restrict();
     bool assumeNumber();
@@ -54,6 +55,7 @@ private:
 
 // explicit instantiation declaration
 extern template class Solver<3>;
+extern template class Solver<4>;
 }
 
 #endif
