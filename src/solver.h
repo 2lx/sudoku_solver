@@ -37,8 +37,8 @@ private:
     Solver(Solver &&) = delete;
 
 private:
-    void updatePossibilities(size_t index);
-    bool restrict();
+    void updatePossibilities(const Cell<NCOUNT> & cell);
+    bool narrow();
     bool assumeNumber();
     bool isSolvable() const;
     bool isFilled() const;
@@ -83,12 +83,13 @@ template <size_t SIZE>
 bool Solver<SIZE>::read(std::istream & stream)
 {
     for (auto & cell: m_cells)
+    {
         if (!(stream >> cell))
             return false;
 
-    for (size_t i = 0; i < NCOUNT * NCOUNT; ++i)
-        if (!m_cells[i].isEmpty())
-            updatePossibilities(i);
+        if (!cell.isEmpty())
+            updatePossibilities(cell);
+    }
 
     return true;
 }
@@ -124,22 +125,20 @@ void Solver<SIZE>::print(std::ostream & stream) const
 }
 
 template <size_t SIZE>
-void Solver<SIZE>::updatePossibilities(size_t index)
+void Solver<SIZE>::updatePossibilities(const Cell<NCOUNT> & cell)
 {
-    const size_t number = m_cells[index].number();
+    for (const auto nbi: m_neighbors[ROW][row(cell.index())])
+        m_cells[nbi].disable(cell.number());
 
-    for (const auto nbi: m_neighbors[ROW][row(index)])
-        m_cells[nbi].disable(number);
+    for (const auto nbi: m_neighbors[COL][col(cell.index())])
+        m_cells[nbi].disable(cell.number());
 
-    for (const auto nbi: m_neighbors[COL][col(index)])
-        m_cells[nbi].disable(number);
-
-    for (const auto nbi: m_neighbors[BOX][box(index)])
-        m_cells[nbi].disable(number);
+    for (const auto nbi: m_neighbors[BOX][box(cell.index())])
+        m_cells[nbi].disable(cell.number());
 }
 
 template <size_t SIZE>
-bool Solver<SIZE>::restrict()
+bool Solver<SIZE>::narrow()
 {
     auto fn_check = [this](size_t number, size_t ind, const auto & nbs)
     {
@@ -150,10 +149,9 @@ bool Solver<SIZE>::restrict()
         });
     };
 
-    bool result = false;
-    for (size_t i = 0; i < NCOUNT * NCOUNT; ++i)
+    bool narrowed = false;
+    for (auto & cell: m_cells)
     {
-        auto & cell = m_cells[i];
         if (!cell.isEmpty())
             continue;
 
@@ -161,46 +159,43 @@ bool Solver<SIZE>::restrict()
         for (const auto & number: numbers)
         {
             if (cell.isOnlyOne()
-                || fn_check(number, i, m_neighbors[ROW][row(i)])
-                || fn_check(number, i, m_neighbors[COL][col(i)])
-                || fn_check(number, i, m_neighbors[BOX][box(i)]))
+                || fn_check(number, cell.index(), m_neighbors[ROW][row(cell.index())])
+                || fn_check(number, cell.index(), m_neighbors[COL][col(cell.index())])
+                || fn_check(number, cell.index(), m_neighbors[BOX][box(cell.index())]))
             {
                 cell.setNumber(number);
-                updatePossibilities(i);
-                result = true;
+                updatePossibilities(cell);
+                narrowed = true;
                 break;
             }
         }
     }
 
-    return result;
+    return narrowed;
 }
 
 template <size_t SIZE>
 bool Solver<SIZE>::assumeNumber()
 {
-    using namespace std::placeholders;
-    const auto it = std::find_if(m_cells.begin(), m_cells.end(), bind(&Cell<NCOUNT>::isEmpty, _1));
+    auto & cell = *std::find_if(m_cells.begin(), m_cells.end(),
+                                bind(&Cell<NCOUNT>::isEmpty, std::placeholders::_1));
 
-    const size_t index = std::distance(m_cells.begin(), it);
-    const auto poss = it->possibilities();
-
-    for (const auto & poss_number: poss)
+    for (const auto & number: cell.possibilities())
     {
-        const auto backup = m_cells;
+        auto backup{ m_cells };
 
         print(std::cout);
-        std::cout << "assume [" << col(index) << "," << row(index)
-                  << "]=" << poss_number << std::endl;
+        std::cout << "assume [" << col(cell.index()) << "," << row(cell.index())
+                  << "]=" << number << std::endl;
 
-        it->setNumber(poss_number);
-        updatePossibilities(index);
+        cell.setNumber(number);
+        updatePossibilities(cell);
 
         if (solve())
             return true;
 
         std::cout << "wrong assumption" << std::endl;
-        m_cells = move(backup);
+        m_cells = std::move(backup);
     }
 
     return false;
@@ -215,7 +210,7 @@ bool Solver<SIZE>::solve()
         if (isFilled() || !isSolvable)
             return isSolvable;
 
-        if (!restrict())
+        if (!narrow())
             return assumeNumber();
     }
 }

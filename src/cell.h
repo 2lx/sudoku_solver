@@ -13,8 +13,16 @@ template <size_t N>
 class Cell
 {
 public:
+    Cell() : m_index(s_counter++) { }
+
+    Cell(const Cell &) = default;
+    Cell & operator=(Cell &&) = default;
+    Cell & operator=(const Cell &) = delete;
+    Cell(Cell &&) = delete;
+
     size_t number() const                { return m_number; }
     void setNumber(size_t number)        { m_number = number; }
+    size_t index() const                 { return m_index; }
     void disable(size_t number)          { m_possibilities.reset(number - 1); }
 
     bool isEmpty() const                 { return m_number == EMPTY; }
@@ -35,8 +43,14 @@ public:
 
 private:
     size_t m_number = 0;
+    size_t m_index;
     std::bitset<N> m_possibilities = std::bitset<N>().set();
+
+    static size_t s_counter;
 };
+
+template <size_t N>
+size_t Cell<N>::s_counter = 0;
 
 template <size_t N>
 std::ostream & operator <<(std::ostream & ostr, const Cell<N> & cell)
