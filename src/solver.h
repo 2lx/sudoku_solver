@@ -9,14 +9,13 @@
 #include <string>
 #include <algorithm>
 #include <numeric>
-#include <unordered_set>
 #include <functional>
 
 namespace Sudoku
 {
 enum NbType { ROW, COL, BOX };
 
-template <size_t SIZE>
+template <size_t N>
 class Solver
 {
 public:
@@ -28,8 +27,8 @@ public:
     bool isCorrect() const;
 
 private:
-    static constexpr size_t NCOUNT = SIZE * SIZE;
-    using narray_t = std::array<std::array<size_t, NCOUNT>, NCOUNT>;
+    static constexpr size_t N2 = N * N;
+    using narray_t = std::array<std::array<size_t, N2>, N2>;
 
     Solver(const Solver &) = delete;
     Solver & operator=(Solver &&) = delete;
@@ -37,50 +36,50 @@ private:
     Solver(Solver &&) = delete;
 
 private:
-    void updatePossibilities(const Cell<NCOUNT> & cell);
+    void updatePossibilities(const Cell<N2> & cell);
     bool narrow();
     bool assumeNumber();
     bool isSolvable() const;
     bool isFilled() const;
 
-    size_t col(size_t i) const { return i % NCOUNT; }
-    size_t row(size_t i) const { return i / NCOUNT; }
-    size_t box(size_t i) const { return (i / NCOUNT) / SIZE * SIZE + (i % NCOUNT) / SIZE; }
+    size_t col(size_t i) const { return i % N2; }
+    size_t row(size_t i) const { return i / N2; }
+    size_t box(size_t i) const { return (i / N2) / N * N + (i % N2) / N; }
 
     template <NbType TYPE>
     static constexpr narray_t initNeighbors();
 
 private:
-    std::array<Cell<NCOUNT>, NCOUNT * NCOUNT> m_cells;
+    std::array<Cell<N2>, N2 * N2> m_cells;
 
     static constexpr narray_t m_neighbors[] =
         { initNeighbors<ROW>(), initNeighbors<COL>(), initNeighbors<BOX>() };
 };
 
-template <size_t SIZE>
+template <size_t N>
 template <NbType TYPE>
-constexpr typename Solver<SIZE>::narray_t Solver<SIZE>::initNeighbors()
+constexpr typename Solver<N>::narray_t Solver<N>::initNeighbors()
 {
     narray_t result{ 0 };
 
-    for (size_t i1 = 0; i1 < NCOUNT; ++i1)
+    for (size_t i1 = 0; i1 < N2; ++i1)
     {
-        const size_t boxFirst = i1 / SIZE * SIZE * NCOUNT + i1 % SIZE * SIZE;
+        const size_t boxFirst = i1 / N * N * N2 + i1 % N * N;
 
-        for (size_t i2 = 0; i2 < NCOUNT; ++i2)
+        for (size_t i2 = 0; i2 < N2; ++i2)
             if constexpr (TYPE == ROW)
-                result[i1][i2] = i1 * NCOUNT + i2;
+                result[i1][i2] = i1 * N2 + i2;
             else if constexpr (TYPE == COL)
-                result[i1][i2] = i2 * NCOUNT + i1;
+                result[i1][i2] = i2 * N2 + i1;
             else
-                result[i1][i2] = boxFirst + i2 / SIZE * NCOUNT + i2 % SIZE;
+                result[i1][i2] = boxFirst + i2 / N * N2 + i2 % N;
     }
 
     return result;
 }
 
-template <size_t SIZE>
-bool Solver<SIZE>::read(std::istream & stream)
+template <size_t N>
+bool Solver<N>::read(std::istream & stream)
 {
     for (auto & cell: m_cells)
     {
@@ -94,14 +93,14 @@ bool Solver<SIZE>::read(std::istream & stream)
     return true;
 }
 
-template <size_t SIZE>
-void Solver<SIZE>::print(std::ostream & stream) const
+template <size_t N>
+void Solver<N>::print(std::ostream & stream) const
 {
     static const std::string rowdelim =
-        '+' + string_join(std::vector(SIZE, std::string(SIZE, '-')), "+") + "+\n";
+        '+' + string_join(std::vector(N, std::string(N, '-')), "+") + "+\n";
 
     std::ostringstream ss;
-    std::array<std::string, SIZE> strings, rows, blocks;
+    std::array<std::string, N> strings, rows, blocks;
     size_t index = 0;
 
     for (auto & block: blocks)
@@ -111,7 +110,7 @@ void Solver<SIZE>::print(std::ostream & stream) const
             for (auto & str: strings)
             {
                 ss.seekp(0);
-                for (size_t i = 0; i < SIZE; ++i)
+                for (size_t i = 0; i < N; ++i)
                     ss << m_cells[index++];
 
                 str = ss.str();
@@ -124,8 +123,8 @@ void Solver<SIZE>::print(std::ostream & stream) const
     stream << rowdelim + string_join(blocks, rowdelim.c_str()) + rowdelim;
 }
 
-template <size_t SIZE>
-void Solver<SIZE>::updatePossibilities(const Cell<NCOUNT> & cell)
+template <size_t N>
+void Solver<N>::updatePossibilities(const Cell<N2> & cell)
 {
     for (const auto nbi: m_neighbors[ROW][row(cell.index())])
         m_cells[nbi].disable(cell.number());
@@ -137,8 +136,8 @@ void Solver<SIZE>::updatePossibilities(const Cell<NCOUNT> & cell)
         m_cells[nbi].disable(cell.number());
 }
 
-template <size_t SIZE>
-bool Solver<SIZE>::narrow()
+template <size_t N>
+bool Solver<N>::narrow()
 {
     auto fn_check = [this](size_t number, size_t ind, const auto & nbs)
     {
@@ -174,11 +173,11 @@ bool Solver<SIZE>::narrow()
     return narrowed;
 }
 
-template <size_t SIZE>
-bool Solver<SIZE>::assumeNumber()
+template <size_t N>
+bool Solver<N>::assumeNumber()
 {
     auto & cell = *std::find_if(m_cells.begin(), m_cells.end(),
-                                bind(&Cell<NCOUNT>::isEmpty, std::placeholders::_1));
+                                bind(&Cell<N2>::isEmpty, std::placeholders::_1));
 
     for (const auto & number: cell.possibilities())
     {
@@ -201,45 +200,49 @@ bool Solver<SIZE>::assumeNumber()
     return false;
 }
 
-template <size_t SIZE>
-bool Solver<SIZE>::solve()
+template <size_t N>
+bool Solver<N>::solve()
 {
     while (true)
     {
-        const bool isSolvable = this->isSolvable();
-        if (isFilled() || !isSolvable)
-            return isSolvable;
+        if (!isSolvable())
+            return false;
+
+        if (isFilled())
+            return true;
 
         if (!narrow())
             return assumeNumber();
     }
 }
 
-template <size_t SIZE>
-bool Solver<SIZE>::isFilled() const
+template <size_t N>
+bool Solver<N>::isFilled() const
 {
     return std::none_of(m_cells.cbegin(), m_cells.cend(),
             [](const auto & cell) { return cell.isEmpty(); });
 }
 
-template <size_t SIZE>
-bool Solver<SIZE>::isSolvable() const
+template <size_t N>
+bool Solver<N>::isSolvable() const
 {
     return std::none_of(m_cells.cbegin(), m_cells.cend(),
             [](const auto & cell) { return cell.isInconsistent(); });
 }
 
-template <size_t SIZE>
-bool Solver<SIZE>::isCorrect() const
+template <size_t N>
+bool Solver<N>::isCorrect() const
 {
     auto fn_testUnique = [this](const auto & nbs) {
-        std::unordered_set<size_t> numbers;
+        std::bitset<N2> flags;
 
-        return std::all_of(nbs.cbegin(), nbs.cend(), [&](const auto nbi)
-            { return numbers.insert(m_cells[nbi].number()).second; });
+        for (const auto & nbi: nbs)
+            flags.set(m_cells[nbi].number() - 1);
+
+        return flags.all();
     };
 
-    std::array<size_t, NCOUNT> indexes;
+    std::array<size_t, N2> indexes;
     std::iota(indexes.begin(), indexes.end(), 0);
 
     return std::all_of(indexes.begin(), indexes.end(), [&fn_testUnique](size_t index)
