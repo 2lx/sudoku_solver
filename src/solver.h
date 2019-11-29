@@ -8,6 +8,7 @@
 
 namespace Sudoku
 {
+enum NbType { ROW, COL, BOX };
 
 template <size_t SIZE>
 class Solver
@@ -40,17 +41,14 @@ private:
     size_t row(size_t i) const { return i / NCOUNT; }
     size_t box(size_t i) const { return (i / NCOUNT) / SIZE * SIZE + (i % NCOUNT) / SIZE; }
 
-    // static
-    static constexpr narray_t InitRowNeighbors();
-    static constexpr narray_t InitColNeighbors();
-    static constexpr narray_t InitBoxNeighbors();
-
-    static constexpr narray_t m_rowNeighbors = InitRowNeighbors();
-    static constexpr narray_t m_colNeighbors = InitColNeighbors();
-    static constexpr narray_t m_boxNeighbors = InitBoxNeighbors();
+    template <NbType TYPE>
+    static constexpr narray_t initNeighbors();
 
 private:
     std::array<Cell<NCOUNT>, NCOUNT * NCOUNT> m_cells;
+
+    static constexpr narray_t m_neighbors[] =
+        { initNeighbors<ROW>(), initNeighbors<COL>(), initNeighbors<BOX>() };
 };
 
 // explicit instantiation declaration

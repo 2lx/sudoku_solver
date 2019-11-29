@@ -10,40 +10,22 @@ using namespace std;
 using namespace Sudoku;
 
 template <size_t SIZE>
-constexpr typename Solver<SIZE>::narray_t Solver<SIZE>::InitRowNeighbors()
+template <NbType TYPE>
+constexpr typename Solver<SIZE>::narray_t Solver<SIZE>::initNeighbors()
 {
     narray_t result{ 0 };
 
-    for (auto row = 0u; row < NCOUNT; ++row)
-        for (auto ind = 0u; ind < NCOUNT; ++ind)
-            result[row][ind] = row * NCOUNT + ind;
-
-    return result;
-}
-
-template <size_t SIZE>
-constexpr typename Solver<SIZE>::narray_t Solver<SIZE>::InitColNeighbors()
-{
-    narray_t result{ 0 };
-
-    for (auto col = 0u; col < NCOUNT; ++col)
-        for (auto ind = 0u; ind < NCOUNT; ++ind)
-            result[col][ind] = col + ind * NCOUNT;
-
-    return result;
-}
-
-template <size_t SIZE>
-constexpr typename Solver<SIZE>::narray_t Solver<SIZE>::InitBoxNeighbors()
-{
-    narray_t result{ 0 };
-
-    for (size_t box = 0; box < NCOUNT; ++box)
+    for (size_t i1 = 0; i1 < NCOUNT; ++i1)
     {
-        const size_t boxFirst = box / SIZE * SIZE * NCOUNT + box % SIZE * SIZE;
+        const size_t boxFirst = i1 / SIZE * SIZE * NCOUNT + i1 % SIZE * SIZE;
 
-        for (size_t ind = 0; ind < NCOUNT; ++ind)
-            result[box][ind] = boxFirst + ind / SIZE * NCOUNT + ind % SIZE;
+        for (size_t i2 = 0; i2 < NCOUNT; ++i2)
+            if constexpr (TYPE == ROW)
+                result[i1][i2] = i1 * NCOUNT + i2;
+            else if constexpr (TYPE == COL)
+                result[i1][i2] = i2 * NCOUNT + i1;
+            else
+                result[i1][i2] = boxFirst + i2 / SIZE * NCOUNT + i2 % SIZE;
     }
 
     return result;
@@ -98,13 +80,13 @@ void Solver<SIZE>::updatePossibilities(size_t index)
 {
     const size_t number = m_cells[index].number();
 
-    for (const auto nbi: m_rowNeighbors[row(index)])
+    for (const auto nbi: m_neighbors[ROW][row(index)])
         m_cells[nbi].disable(number);
 
-    for (const auto nbi: m_colNeighbors[col(index)])
+    for (const auto nbi: m_neighbors[COL][col(index)])
         m_cells[nbi].disable(number);
 
-    for (const auto nbi: m_boxNeighbors[box(index)])
+    for (const auto nbi: m_neighbors[BOX][box(index)])
         m_cells[nbi].disable(number);
 }
 
@@ -131,9 +113,9 @@ bool Solver<SIZE>::restrict()
         for (const auto & number: numbers)
         {
             if (cell.isOnlyOne()
-                || fn_check(number, i, m_rowNeighbors[row(i)])
-                || fn_check(number, i, m_colNeighbors[col(i)])
-                || fn_check(number, i, m_boxNeighbors[box(i)]))
+                || fn_check(number, i, m_neighbors[ROW][row(i)])
+                || fn_check(number, i, m_neighbors[COL][col(i)])
+                || fn_check(number, i, m_neighbors[BOX][box(i)]))
             {
                 cell.setNumber(number);
                 updatePossibilities(i);
@@ -216,9 +198,9 @@ bool Solver<SIZE>::isCorrect() const
 
     for (size_t i = 0; i < NCOUNT; ++i)
     {
-        if (!testUnique(m_rowNeighbors[i])
-         || !testUnique(m_colNeighbors[i])
-         || !testUnique(m_boxNeighbors[i]))
+        if (!testUnique(m_neighbors[ROW][i])
+         || !testUnique(m_neighbors[COL][i])
+         || !testUnique(m_neighbors[BOX][i]))
             return false;
     }
 
