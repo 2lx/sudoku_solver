@@ -1,8 +1,8 @@
 // https://stackoverflow.com/questions/5288396/c-ostream-out-manipulation
 // join all items in a container into a string, using a 'delim' as separator
 
-#ifndef JOIN_H__
-#define JOIN_H__
+#ifndef STRING_JOIN_H
+#define STRING_JOIN_H
 
 #include <sstream>
 #include <iterator>

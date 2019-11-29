@@ -24,7 +24,7 @@ private:
     static constexpr size_t NCOUNT = SIZE*SIZE;
     using narray_t = std::array<std::array<size_t, NCOUNT>, NCOUNT>;
 
-    Solver(const Solver&) = delete;
+    Solver(const Solver &) = delete;
     Solver & operator=(Solver &&) = delete;
     Solver & operator=(const Solver &) = delete;
     Solver(Solver &&) = delete;

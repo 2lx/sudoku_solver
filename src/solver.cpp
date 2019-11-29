@@ -3,7 +3,8 @@
 
 #include <iostream>
 #include <algorithm>
-#include <set>
+#include <unordered_set>
+#include <functional>
 
 using namespace std;
 using namespace Sudoku;
@@ -37,11 +38,11 @@ constexpr typename Solver<SIZE>::narray_t Solver<SIZE>::InitBoxNeighbors()
 {
     narray_t result{ 0 };
 
-    for (auto box = 0u; box < NCOUNT; ++box)
+    for (size_t box = 0; box < NCOUNT; ++box)
     {
         const size_t boxFirst = box / SIZE * SIZE * NCOUNT + box % SIZE * SIZE;
 
-        for (auto ind = 0u; ind < NCOUNT; ++ind)
+        for (size_t ind = 0; ind < NCOUNT; ++ind)
             result[box][ind] = boxFirst + ind / SIZE * NCOUNT + ind % SIZE;
     }
 
@@ -65,34 +66,31 @@ bool Solver<SIZE>::read(std::istream & stream)
 template <size_t SIZE>
 void Solver<SIZE>::print(std::ostream & stream) const
 {
-    static const string rowdelim = []
-    {
-        const vector<string> result(SIZE, string(SIZE, '-'));
-        return string_join(result, "|") + '\n';
-    }();
+    static const string rowdelim =
+        '+' + string_join(vector(SIZE, string(SIZE, '-')), "+") + "+\n";
 
     ostringstream ss;
     array<string, SIZE> strings, rows, blocks;
     size_t index = 0;
 
-    for (size_t iblock = 0; iblock < SIZE; ++iblock)
+    for (auto & block: blocks)
     {
-        for (size_t irow = 0; irow < SIZE; ++irow)
+        for (auto & row: rows)
         {
-            for (size_t istring = 0; istring < SIZE; ++istring)
+            for (auto & str: strings)
             {
                 ss.seekp(0);
-                for (size_t ichar = 0; ichar < SIZE; ++ichar)
+                for (size_t i = 0; i < SIZE; ++i)
                     ss << m_cells[index++];
 
-                strings[istring] = ss.str();
+                str = ss.str();
             }
-            rows[irow] = string_join(strings, "|");
+            row = '|' + string_join(strings, "|") + '|';
         }
-        blocks[iblock] = string_join(rows, "\n") + '\n';
+        block = string_join(rows, "\n") + '\n';
     }
 
-    stream << string_join(blocks, rowdelim.c_str());
+    stream << rowdelim + string_join(blocks, rowdelim.c_str()) + rowdelim;
 }
 
 template <size_t SIZE>
@@ -148,12 +146,11 @@ bool Solver<SIZE>::restrict()
     return result;
 }
 
-// We did not add any m_numbers during the last iteration, so we have to assume
 template <size_t SIZE>
 bool Solver<SIZE>::assumeNumber()
 {
-    const auto it = find_if(m_cells.begin(), m_cells.end(),
-            [](const auto & cell) { return cell.isEmpty(); });
+    using namespace placeholders;
+    const auto it = find_if(m_cells.begin(), m_cells.end(), bind(&Cell<NCOUNT>::isEmpty, _1));
 
     const size_t index = distance(m_cells.begin(), it);
     const auto poss = it->possibilities();
@@ -172,8 +169,7 @@ bool Solver<SIZE>::assumeNumber()
         if (solve())
             return true;
 
-        cout << "wrong assumption [" << col(index) << "," << row(index)
-             << "]=" << poss_number << endl;
+        cout << "wrong assumption" << endl;
         m_cells = move(backup);
     }
 
@@ -211,14 +207,11 @@ bool Solver<SIZE>::isSolvable() const
 template <size_t SIZE>
 bool Solver<SIZE>::isCorrect() const
 {
-    auto testUnique = [this](const auto& neighbors) {
-        set<size_t> nums;
+    auto testUnique = [this](const auto & nbs) {
+        unordered_set<size_t> numbers;
 
-        for (auto nbi: neighbors)
-            if (!nums.insert(m_cells[nbi].number()).second)
-                return false;
-
-        return true;
+        return all_of(nbs.cbegin(), nbs.cend(), [&](const auto nbi)
+            { return numbers.insert(m_cells[nbi].number()).second; });
     };
 
     for (size_t i = 0; i < NCOUNT; ++i)
