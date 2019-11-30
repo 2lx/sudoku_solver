@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <numeric>
 #include <functional>
+#include <optional>
 
 namespace Sudoku
 {
@@ -24,7 +25,8 @@ public:
 
     bool read(std::istream & stream);
     bool solve();
-    void print(std::ostream & stream) const;
+    std::string getState(const std::optional<std::pair<bool, size_t>> & mark = std::nullopt) const;
+    void printSolution(std::ostream & stream) const;
     bool isCorrect() const;
 
 private:
@@ -52,6 +54,7 @@ private:
 
 private:
     std::array<Cell<N2>, N2 * N2> m_cells;
+    std::vector<std::string> m_states;
 
     static constexpr narray_t m_neighbors[] =
         { initNeighbors<ROW>(), initNeighbors<COL>(), initNeighbors<BOX>() };
@@ -95,12 +98,17 @@ bool Solver<N>::read(std::istream & stream)
 }
 
 template <size_t N>
-void Solver<N>::print(std::ostream & stream) const
+std::string Solver<N>::getState(const std::optional<std::pair<bool, size_t>> & mark) const
 {
     using namespace Term;
 
     static const std::string rowdelim =
         '+' + string_join(std::vector(N, std::string(N, '-')), "+") + "+\n";
+
+    const Color  mark_color = mark.has_value() && mark.value().first ? Color::Green
+                                                                     : Color::Red;
+    const size_t mark_index = mark.has_value() ? mark.value().second
+                                               : std::numeric_limits<size_t>::max();
 
     std::ostringstream ss;
     std::array<std::string, N> strings, rows, blocks;
@@ -115,7 +123,10 @@ void Solver<N>::print(std::ostream & stream) const
                 ss.str(std::string());
 
                 for (size_t i = 0; i < N; ++i)
-                    ss << set_font(Color::Yellow, Color::None, Effect::Bold) << m_cells[index++];
+                {
+                    const Color color = mark_index == index ? mark_color : Color::Yellow;
+                    ss << set_font(color, Color::None, Effect::Bold) << m_cells[index++];
+                }
 
                 ss << set_font(Color::None);
                 str = ss.str();
@@ -125,7 +136,26 @@ void Solver<N>::print(std::ostream & stream) const
         block = string_join(rows, "\n") + '\n';
     }
 
-    stream << rowdelim + string_join(blocks, rowdelim.c_str()) + rowdelim;
+    return rowdelim + string_join(blocks, rowdelim.c_str()) + rowdelim;
+}
+
+template <size_t N>
+void Solver<N>::printSolution(std::ostream & stream) const
+{
+    std::array<std::string, N2 + N + 1> lines;
+
+    for (const auto & state: m_states)
+    {
+        std::istringstream ss(state);
+        std::string line;
+
+        size_t iline = 0;
+        while (std::getline(ss, line))
+            lines[iline++] += line + "  ";
+    }
+
+    for (const auto & line: lines)
+        stream << line << '\n';
 }
 
 template <size_t N>
@@ -190,17 +220,14 @@ bool Solver<N>::assumeNumber()
     {
         auto backup{ m_cells };
 
-        /* print(std::cout); */
-        /* std::cout << "assume [" << col(cell.index()) << "," << row(cell.index()) */
-        /*           << "]=" << number << std::endl; */
-
         cell.setNumber(number);
         updatePossibilities(cell);
+        m_states.emplace_back(getState(std::make_pair(true, cell.index())));
 
         if (solve())
             return true;
 
-        /* std::cout << "wrong assumption" << std::endl; */
+        m_states.emplace_back(getState(std::make_pair(false, cell.index())));
         m_cells = std::move(backup);
     }
 
@@ -216,7 +243,10 @@ bool Solver<N>::solve()
             return false;
 
         if (isFilled())
+        {
+            m_states.emplace_back(getState());
             return true;
+        }
 
         if (!narrow())
             return assumeNumber();
