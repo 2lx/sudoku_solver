@@ -8,7 +8,6 @@ Simple algorithm written in C++17, can solve sudoku that have multiple solutions
 > ./bin/SudokuSolver
 ```
 
-Examples: 
+Example:
 
-```
-> ./bin/SudokuSolver < levels/x3_01
+<img align="center" width="500" src="../assets/screenshot1.png">
