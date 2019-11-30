@@ -97,6 +97,8 @@ bool Solver<N>::read(std::istream & stream)
 template <size_t N>
 void Solver<N>::print(std::ostream & stream) const
 {
+    using namespace Term;
+
     static const std::string rowdelim =
         '+' + string_join(std::vector(N, std::string(N, '-')), "+") + "+\n";
 
@@ -111,16 +113,11 @@ void Solver<N>::print(std::ostream & stream) const
             for (auto & str: strings)
             {
                 ss.str(std::string());
-                for (size_t i = 0; i < N; ++i)
-                {
-                    const auto & cell = m_cells[index++];
-                    const Color fg = to_color(cell.number());
-                    const Color bg = (fg == Color::Black && !cell.isEmpty()) ? Color::White
-                                                                             : Color::Black;
-                    ss << set_color(fg, bg) << cell;
-                }
-                ss << set_color(Color::None);
 
+                for (size_t i = 0; i < N; ++i)
+                    ss << set_font(Color::Yellow, Color::None, Effect::Bold) << m_cells[index++];
+
+                ss << set_font(Color::None);
                 str = ss.str();
             }
             row = '|' + string_join(strings, "|") + '|';
