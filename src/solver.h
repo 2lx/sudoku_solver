@@ -13,8 +13,6 @@ public:
     Solver() = default;
 
     bool read(std::istream & stream)             { return m_board.read(stream); }
-    bool isCorrect() const                       { return m_board.isCorrect(); }
-
     void printState(std::ostream & stream) const { stream << m_board.getState(); }
     void printSolution(std::ostream & stream) const;
 
@@ -77,7 +75,7 @@ bool Solver<N>::assumeNumber()
 {
     const auto & cell = m_board.firstEmptyCell();
 
-    // and try to substitute one of its possibilities
+    // try to substitute one of cell's possibilities
     for (const auto & number: cell.possibilities())
     {
         auto backup{ m_board };
@@ -88,6 +86,7 @@ bool Solver<N>::assumeNumber()
         if (solve())
             return true;
 
+        // there was a wrong assumption, return the state of the board
         m_states.emplace_back(m_board.getState(std::make_pair(false, cell.index())));
         m_board = std::move(backup);
     }
@@ -106,7 +105,7 @@ bool Solver<N>::solve()
         if (m_board.isFilled())
         {
             m_states.emplace_back(m_board.getState());
-            return true;
+            return m_board.isCorrect();
         }
 
         if (!narrow())

@@ -17,8 +17,6 @@ int main()
     solver.printState(cout);
     cout << endl;
 
-    solver.solve();
-
-    cout << (solver.isCorrect() ? "Solution:\n" : "Error. Current state:\n");
+    cout << (solver.solve() ? "Solution:\n" : "Error. Log of states:\n");
     solver.printSolution(cout);
 }
