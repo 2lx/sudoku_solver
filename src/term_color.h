@@ -1,6 +1,8 @@
 #ifndef TERM_COLOR_H
 #define TERM_COLOR_H
 
+#include "string_join.h"
+
 #include <string>
 #include <iosfwd>
 
@@ -33,27 +35,17 @@ std::string set_font(Color fg = Color::None, Color bg = Color::None, Effect ef =
         if (fg == Color::None && bg == Color::None && ef == Effect::Normal)
             return "0";
 
-        std::string result;
+        std::vector<std::string> result;
         if (fg != Color::None)
-        {
-            result += std::to_string(29 + static_cast<size_t>(fg));
-
-            if (bg != Color::None || ef != Effect::Normal)
-                result += ';';
-        }
+            result.emplace_back(std::to_string(29 + static_cast<size_t>(fg)));
 
         if (bg != Color::None)
-        {
-            result += std::to_string(39 + static_cast<size_t>(bg));
-
-            if (ef != Effect::Normal)
-                result += ';';
-        }
+            result.emplace_back(std::to_string(39 + static_cast<size_t>(bg)));
 
         if (ef != Effect::Normal)
-            result += std::to_string(static_cast<size_t>(ef));
+            result.emplace_back(std::to_string(static_cast<size_t>(ef)));
 
-        return result;
+        return string_join(result, ";");
     }();
 
     return prefix + value + suffix;
