@@ -1,6 +1,6 @@
 # sudoku_solver
 
-Simple algorithm written in C++17, can solve sudoku that have multiple solutions. Usage:
+Simple algorithm written in C++17, can solve sudoku puzzles that have multiple solutions. Usage:
 
 ```
 > cmake CMakeLists.txt
