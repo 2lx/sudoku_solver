@@ -3,6 +3,7 @@
 
 #include "cell.h"
 #include "string_join.h"
+#include "term_color.h"
 
 #include <iostream>
 #include <array>
@@ -109,9 +110,16 @@ void Solver<N>::print(std::ostream & stream) const
         {
             for (auto & str: strings)
             {
-                ss.seekp(0);
+                ss.str(std::string());
                 for (size_t i = 0; i < N; ++i)
-                    ss << m_cells[index++];
+                {
+                    const auto & cell = m_cells[index++];
+                    const Color fg = to_color(cell.number());
+                    const Color bg = (fg == Color::Black && !cell.isEmpty()) ? Color::White
+                                                                             : Color::Black;
+                    ss << set_color(fg, bg) << cell;
+                }
+                ss << set_color(Color::None);
 
                 str = ss.str();
             }
@@ -176,9 +184,11 @@ bool Solver<N>::narrow()
 template <size_t N>
 bool Solver<N>::assumeNumber()
 {
+    // find the first empty cell
     auto & cell = *std::find_if(m_cells.begin(), m_cells.end(),
                                 bind(&Cell<N2>::isEmpty, std::placeholders::_1));
 
+    // and try to substitute one of its possibilities
     for (const auto & number: cell.possibilities())
     {
         auto backup{ m_cells };
