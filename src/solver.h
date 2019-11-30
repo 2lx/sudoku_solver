@@ -190,9 +190,9 @@ bool Solver<N>::assumeNumber()
     {
         auto backup{ m_cells };
 
-        print(std::cout);
-        std::cout << "assume [" << col(cell.index()) << "," << row(cell.index())
-                  << "]=" << number << std::endl;
+        /* print(std::cout); */
+        /* std::cout << "assume [" << col(cell.index()) << "," << row(cell.index()) */
+        /*           << "]=" << number << std::endl; */
 
         cell.setNumber(number);
         updatePossibilities(cell);
@@ -200,7 +200,7 @@ bool Solver<N>::assumeNumber()
         if (solve())
             return true;
 
-        std::cout << "wrong assumption" << std::endl;
+        /* std::cout << "wrong assumption" << std::endl; */
         m_cells = std::move(backup);
     }
 
