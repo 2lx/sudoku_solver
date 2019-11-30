@@ -27,7 +27,7 @@ public:
 
     bool isEmpty() const                 { return m_number == EMPTY; }
     bool isPossible(size_t number) const { return m_possibilities[number - 1] == true; }
-    bool isOnlyOne() const               { return m_possibilities.count() == 1; }
+    bool isOnlyOnePossibility() const    { return m_possibilities.count() == 1; }
     bool isInconsistent() const          { return m_number == EMPTY && m_possibilities.count() == 0; }
 
     std::vector<size_t> possibilities() const

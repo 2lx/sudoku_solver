@@ -7,7 +7,6 @@
 #include <sstream>
 #include <iterator>
 #include <algorithm>
-#include <string>
 
 template <typename Range, typename Value = typename Range::value_type>
 std::string string_join(const Range & elements, const char * const delim = " ") {

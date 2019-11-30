@@ -13,7 +13,10 @@ int main()
         return EXIT_FAILURE;
     }
 
-    cout << "Puzzle:" << endl << solver.getState() << endl;
+    cout << "Puzzle:" << endl;
+    solver.printState(cout);
+    cout << endl;
+
     solver.solve();
 
     cout << (solver.isCorrect() ? "Solution:\n" : "Error. Current state:\n");

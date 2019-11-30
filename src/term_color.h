@@ -2,9 +2,7 @@
 #define TERM_COLOR_H
 
 #include "string_join.h"
-
 #include <string>
-#include <iosfwd>
 
 namespace Term
 {
