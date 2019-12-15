@@ -97,8 +97,11 @@ std::string Board<N>::getState(const std::optional<std::pair<bool, size_t>> & ma
 {
     using namespace Term;
 
-    static const std::string rowdelim =
-        '+' + string_join(std::vector(N, std::string(N, '-')), "+") + "+\n";
+    auto fn_rowdelim = [](const std::string & beg, const std::string & mid, const std::string & end)
+    {
+        const std::string str = string_join(std::vector<const char *>{ N, "─" }, "");
+        return beg + string_join(std::vector(N, str), mid.c_str()) + end + '\n';
+    };
 
     const Color  mark_color = mark.has_value() && mark.value().first ? Color::Green
                                                                      : Color::Red;
@@ -126,12 +129,14 @@ std::string Board<N>::getState(const std::optional<std::pair<bool, size_t>> & ma
                 ss << set_font(Color::None);
                 str = ss.str();
             }
-            row = '|' + string_join(strings, "|") + '|';
+            row = "│" + string_join(strings, "│") + "│";
         }
         block = string_join(rows, "\n") + '\n';
     }
 
-    return rowdelim + string_join(blocks, rowdelim.c_str()) + rowdelim;
+    return fn_rowdelim("┌", "┬", "┐")
+        + string_join(blocks, fn_rowdelim("├", "┼", "┤").c_str())
+        + fn_rowdelim("└", "┴", "┘");
 }
 
 template <size_t N>
